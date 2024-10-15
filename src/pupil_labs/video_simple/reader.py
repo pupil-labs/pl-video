@@ -75,7 +75,7 @@ class Reader:
             frame = VideoFrame(frame, frame_idx)
             yield frame
 
-    def _seek_to_index(self, index: int) -> int:
+    def _seek_to_index(self, index: int):
         if index == 0:
             # TODO: why does this seek not count into the statistic? Why is this a special case in the first place?
             self.container.seek(0, stream=self.container.streams.video[0])
@@ -87,7 +87,6 @@ class Reader:
             offset=pts,
             stream=self.container.streams.video[0],
         )
-        return pts
 
 
 @dataclass
@@ -126,12 +125,15 @@ class IntegerIndexer:
                     result.append(frame)
                 if frame.index >= stop_idx:
                     break
+
+            if isinstance(key, int):
+                result = result[0]
             return result
 
         need_seek = self.check_if_seek_needed(start_idx)
 
         if need_seek:
-            self.previous_decoded_pts = self.reader._seek_to_index(start_idx)
+            self.reader._seek_to_index(start_idx)
             self.stream_buffer.clear()
 
         result = []

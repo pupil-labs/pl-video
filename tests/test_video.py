@@ -133,32 +133,11 @@ def test_seek_avoidance(reader: Reader):
 #     assert frame.external_timestamp == 10
 
 
-# def test_seek_and_then_index(reader: Reader):
-#     video = reader.streams.video[0]
-#     frames = iter(video.frames)
-#     video.seek_to_index(2)
-#     frame = next(frames)
-#     assert frame.index == 2
-
-
-# def test_video_class(reader: plv.InputContainer):
-#     video = reader.streams.video[0]
-#     assert len(video.pts) > 0
-#     assert len(video.dts) > 0
-
-
-# def test_iteration(reader: plv.InputContainer, correct_pts):
-#     video = reader.streams.video[0]
-#     for i, frame in enumerate(video.frames):
-#         assert frame.pts == correct_pts[i]
-
-
-# def test_arbitrary_index(reader: plv.InputContainer, correct_pts):
-#     video = reader.streams.video[0]
-#     for i in [0, 1, 2, 10, 20]:
-#         assert video.frames[i].pts == correct_pts[i]
-#     for i in [-1, -10, -20]:
-#         assert video.frames[i].pts == correct_pts[i]
+def test_arbitrary_index(reader: Reader, correct_pts):
+    for i in [0, 1, 2, 10, 20]:
+        assert reader.by_idx[i].pts == correct_pts[i]
+    for i in [-1, -10, -20]:
+        assert reader.by_idx[i].pts == correct_pts[i]
 
 
 # def test_arbitrary_slices(reader: plv.InputContainer, correct_pts):
