@@ -1,10 +1,17 @@
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Tuple, overload
+from typing import Iterator, List, Optional, Tuple, overload
 from pupil_labs.video_simple.video_frame import VideoFrame
 import numpy.typing as npt
 import av
+
+
+@dataclass
+class ContainerActionCounters:
+    seeks: int = 0
+    decodes: int = 0
+    demuxes: int = 0
 
 
 @dataclass
@@ -16,6 +23,7 @@ class Reader:
         self.container = av.open(str(self.path))
         assert self.container.streams.video, "No video stream found"
         assert len(self.container.streams.video) == 1, "Only one video stream supported"
+        self.stats = ContainerActionCounters()
 
         self._pts = []
         self._pts_to_idx = {}
@@ -54,7 +62,21 @@ class Reader:
     def by_ts(self):
         raise NotImplementedError
 
+    def _decode(self) -> Iterator[VideoFrame]:
+        self.stats.decodes += 1
+        for frame in self.container.decode(video=0):
+            assert frame
+            frame_idx = self._pts_to_idx[frame.pts]
+            frame = VideoFrame(frame, frame_idx)
+            yield frame
+
     def _seek_to_index(self, index: int) -> int:
+        if index == 0:
+            # TODO: why does this seek not count into the statistic? Why is this a special case in the first place?
+            self.container.seek(0, stream=self.container.streams.video[0])
+            return 0
+
+        self.stats.seeks += 1
         pts = self._pts[index]
         self.container.seek(
             offset=pts,
@@ -110,18 +132,15 @@ class IntegerIndexer:
         result = []
         try:
             # TODO: Multi-threaded decoding for speed?
-            for frame in self.reader.container.decode(video=0):
-                assert frame
-                frame_idx = self.reader._pts_to_idx[frame.pts]
-                frame = VideoFrame(frame, frame_idx)
+            for frame in self.reader._decode():
+                self.previous_decoded_pts = frame.pts
                 self.stream_buffer.append(frame)
 
-                if start_idx <= frame_idx < stop_idx:
+                if start_idx <= frame.index < stop_idx:
                     result.append(frame)
 
-                if frame_idx >= stop_idx - 1:
+                if frame.index >= stop_idx - 1:
                     break
-                frame_idx += 1
         except EOFError:
             self.previous_decoded_pts = None
             raise IndexError("frame index out of range")
@@ -131,7 +150,7 @@ class IntegerIndexer:
 
         return result
 
-    def check_if_seek_needed(self, start_idx):
+    def check_if_seek_needed(self, start_idx) -> bool:
         need_seek = True
         if self.previous_decoded_pts is not None:
             previous_decoded_index = self.reader._pts_to_idx[self.previous_decoded_pts]

@@ -53,30 +53,28 @@ def test_getitem_iteration(reader: Reader, correct_pts):
         assert frame.pts == expected_pts
         frame_count += 1
 
-    # assert reader.stats.seeks == 0
+    assert reader.stats.seeks == 0
     assert frame_count == len(correct_pts)
 
 
-# def test_get_item_decodes(reader: plv.InputContainer):
-#     assert reader.stats.seeks == 0
-#     assert reader.streams.video[0].stats.decodes == 0
+def test_seek_avoidance(reader: Reader):
+    assert reader.stats.seeks == 0
+    assert reader.stats.decodes == 0
 
-#     video = reader.streams.video[0]
+    # we dont need to seek when loading the first frame
+    reader.by_idx[0]
+    assert reader.stats.seeks == 0
+    assert reader.stats.decodes == 1
 
-#     # we dont need to seek when loading the first frame
-#     video.frames[0]
-#     assert reader.stats.seeks == 0
-#     assert reader.streams.video[0].stats.decodes == 1
+    # a second access will load the frame from buffer and not seek/decode
+    reader.by_idx[0]
+    assert reader.stats.seeks == 0
+    assert reader.stats.decodes == 1
 
-#     # a second access will load the frame from buffer and not seek/decode
-#     video.frames[0]
-#     assert reader.stats.seeks == 0
-#     assert reader.streams.video[0].stats.decodes == 1
-
-#     # getting the second frame will also not require a seek
-#     video.frames[1]
-#     assert reader.stats.seeks == 0
-#     assert reader.streams.video[0].stats.decodes == 2
+    # getting the second frame will also not require a seek
+    reader.by_idx[1]
+    assert reader.stats.seeks == 0
+    assert reader.stats.decodes == 2
 
 
 # def test_external_timestamps(reader: plv.InputContainer):
