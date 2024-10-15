@@ -34,6 +34,7 @@ class Reader:
             self._pts_to_idx[packet.pts] = len(self._pts) - 1
 
         self._int_indexer = IntegerIndexer(self)
+        self._pts_indexer = PTSIndexer(self)
 
     @property
     def duration(self) -> float | None:
@@ -52,7 +53,7 @@ class Reader:
 
     @property
     def by_pts(self):
-        raise NotImplementedError
+        return self._pts_indexer
 
     @property
     def by_idx(self):
@@ -183,3 +184,19 @@ class IntegerIndexer:
             stop_index = len(self.reader) + stop_index
 
         return start_index, stop_index
+
+
+class PTSIndexer:
+    def __init__(self, reader: Reader):
+        self.reader = reader
+
+    def __getitem__(self, key: int | slice) -> VideoFrame | List[VideoFrame]:
+        if isinstance(key, int):
+            idx = self.reader._pts_to_idx[key]
+            return self.reader.by_idx[idx]
+        elif isinstance(key, slice):
+            start_idx = self.reader._pts_to_idx[key.start]
+            stop_idx = self.reader._pts_to_idx[key.stop]
+            return self.reader.by_idx[start_idx:stop_idx]
+        else:
+            raise TypeError(f"key must be int or slice, not {type(key)}")

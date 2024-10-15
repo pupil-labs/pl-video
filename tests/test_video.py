@@ -67,6 +67,14 @@ def test_by_idx(reader: Reader, correct_pts):
     assert frame_count == len(correct_pts)
 
 
+def test_by_pts(reader: Reader, correct_pts):
+    for expected_pts in measure_fps(correct_pts):
+        frame = reader.by_pts[expected_pts]
+        assert frame.pts == expected_pts
+
+    assert reader.stats.seeks == 0
+
+
 def test_seek_avoidance(reader: Reader):
     assert reader.stats.seeks == 0
     assert reader.stats.decodes == 0
@@ -85,6 +93,11 @@ def test_seek_avoidance(reader: Reader):
     reader.by_idx[1]
     assert reader.stats.seeks == 0
     assert reader.stats.decodes == 2
+
+    # getting the 10th frame will require a seek, but the rest of the slice will not
+    reader.by_idx[10:20]
+    assert reader.stats.seeks == 1
+    assert reader.stats.decodes == 3
 
 
 # def test_external_timestamps(reader: plv.InputContainer):
