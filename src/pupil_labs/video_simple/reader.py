@@ -17,7 +17,7 @@ class ContainerActionCounters:
 @dataclass
 class Reader:
     path: str | Path
-    timestamps: Optional[npt.NDArray] = None
+    _abs_ts: Optional[List[int]] = None
 
     def __post_init__(self):
         self.container = av.open(str(self.path))
@@ -41,12 +41,16 @@ class Reader:
         return self.container.duration
 
     @property
-    def frames(self) -> List[VideoFrame]:
-        raise NotImplementedError
-
-    @property
     def pts(self) -> List[int]:
         return self._pts
+
+    @property
+    def abs_ts(self) -> Optional[List[int]]:
+        return self._abs_ts
+
+    @abs_ts.setter
+    def abs_ts(self, value: List[int]):
+        self._abs_ts = value
 
     def __len__(self) -> int:
         return len(self._pts)
