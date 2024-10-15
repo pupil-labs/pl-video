@@ -1,0 +1,78 @@
+[build-system]
+requires = ["setuptools>=61.2", "setuptools_scm[toml]>=3.4.1"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pupil_labs_video_simple"
+authors = [
+	{ name = "Jason R. Coombs", email = "jaraco@jaraco.com" },
+]
+description = "PROJECT_DESCRIPTION"
+readme = "README.rst"
+classifiers = [
+	"Development Status :: 5 - Production/Stable",
+	"Intended Audience :: Developers",
+	"License :: OSI Approved :: MIT License",
+	"Programming Language :: Python :: 3",
+	"Programming Language :: Python :: 3 :: Only",
+]
+requires-python = ">=3.8"
+dependencies = [
+	"av",
+	"importlib-metadata;python_version<'3.8'",
+    "numpy",
+    "pillow",
+    "pyturbojpeg",
+    "intervaltree",
+    "python-ranges",
+]
+dynamic = ["version"]
+
+[project.urls]
+Source = "https://github.com/PROJECT_PATH"
+
+[project.optional-dependencies]
+test = [
+	# upstream
+	"pytest >= 6, != 8.1.*",
+
+	# local
+]
+
+doc = [
+	# upstream
+	"sphinx >= 3.5",
+	"jaraco.packaging >= 9.3",
+	"rst.linker >= 1.9",
+	"furo",
+	"sphinx-lint",
+
+	# local
+]
+
+check = [
+	"pytest-checkdocs >= 2.4",
+	"pytest-ruff >= 0.2.1; sys_platform != 'cygwin'",
+]
+
+cover = [
+	"pytest-cov",
+]
+
+enabler = [
+	"pytest-enabler >= 2.2",
+]
+
+type = [
+	# upstream
+	"pytest-mypy",
+
+	# local
+]
+
+
+[tool.setuptools_scm]
+
+
+[tool.pytest-enabler.mypy]
+# Disabled due to jaraco/skeleton#143
