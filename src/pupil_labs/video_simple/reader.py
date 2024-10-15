@@ -62,6 +62,10 @@ class Reader:
     def by_ts(self):
         raise NotImplementedError
 
+    def __iter__(self) -> Iterator[VideoFrame]:
+        for i in range(len(self)):
+            yield self.by_idx[i]
+
     def _decode(self) -> Iterator[VideoFrame]:
         self.stats.decodes += 1
         for frame in self.container.decode(video=0):

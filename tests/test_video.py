@@ -46,7 +46,17 @@ def test_pts(reader: Reader, correct_pts):
 #     assert reader.streams.video[0].dts == correct_dts
 
 
-def test_getitem_iteration(reader: Reader, correct_pts):
+def test_iteration(reader: Reader, correct_pts):
+    frame_count = 0
+    for frame, expected_pts in measure_fps(zip(reader, correct_pts)):
+        assert frame.pts == expected_pts
+        frame_count += 1
+
+    assert reader.stats.seeks == 0
+    assert frame_count == len(correct_pts)
+
+
+def test_by_idx(reader: Reader, correct_pts):
     frame_count = 0
     for i, expected_pts in measure_fps(enumerate(correct_pts)):
         frame = reader.by_idx[i]
@@ -110,7 +120,7 @@ def test_seek_avoidance(reader: Reader):
 #     assert frame.external_timestamp == 10
 
 
-# def test_seek_to_index_then_iter(reader: plv.InputContainer):
+# def test_seek_and_then_index(reader: Reader):
 #     video = reader.streams.video[0]
 #     frames = iter(video.frames)
 #     video.seek_to_index(2)
