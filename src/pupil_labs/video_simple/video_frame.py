@@ -133,7 +133,7 @@ def av_frame_to_ndarray_fast(
     Returns an image pixel numpy array for an av.VideoFrame in `format`
     skipping conversion by using buffers directly if possible for performance
     """
-    if pixel_format == "gray":
+    if pixel_format == PixelFormat.gray:
         if av_frame.format.name == "gray":
             return np.frombuffer(av_frame.planes[0], np.uint8).reshape(
                 av_frame.height, av_frame.width
@@ -162,8 +162,11 @@ def av_frame_to_ndarray_fast(
                 # gray = limited_yuv420p_to_full(gray)
 
             return gray
-    elif pixel_format in ("bgr24", "rgb24"):  # TODO(dan): is this worth it?
-        if av_frame.format.name == format:
+    elif pixel_format in (
+        PixelFormat.bgr24,
+        PixelFormat.rgb24,
+    ):  # TODO(dan): is this worth it?
+        if av_frame.format.name == pixel_format:
             plane = av_frame.planes[0]
 
             # TODO(dan): find out why np.frombuffer(plane) didn't work here
@@ -181,4 +184,4 @@ def av_frame_to_ndarray_fast(
                 )
             return image
 
-    return av_frame.to_ndarray(format=pixel_format)
+    return av_frame.to_ndarray(format=str(pixel_format))
