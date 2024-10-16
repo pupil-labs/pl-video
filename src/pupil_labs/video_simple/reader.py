@@ -92,6 +92,15 @@ class Reader:
             stream=self.container.streams.video[0],
         )
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.close()
+
+    def close(self):
+        self.container.close()
+
 
 @dataclass
 class IntegerIndexer:

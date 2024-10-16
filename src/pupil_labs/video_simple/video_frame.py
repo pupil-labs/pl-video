@@ -9,6 +9,8 @@ class PixelFormat(Enum):
     gray = "gray"
     bgr24 = "bgr24"
     rgb24 = "rgb24"
+    yuv420p = "yuv420p"
+    yuv444p = "yuv444p"
 
     def __str__(self):
         return self.value
@@ -184,4 +186,6 @@ def av_frame_to_ndarray_fast(
                 )
             return image
 
-    return av_frame.to_ndarray(format=str(pixel_format))
+    if pixel_format is not None:
+        pixel_format = str(pixel_format)
+    return av_frame.to_ndarray(format=pixel_format)
