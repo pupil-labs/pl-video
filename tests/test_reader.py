@@ -4,7 +4,7 @@ from pathlib import Path
 import av
 import pytest
 
-from pupil_labs.video_simple.reader_new import AVStreamPacketsInfo, Reader
+from pupil_labs.video_simple.reader import AVStreamPacketsInfo, Reader
 
 from .utils import measure_fps
 

@@ -4,10 +4,10 @@ from logging import Logger, getLogger
 from pathlib import Path
 from typing import (
     Any,
-    Callable,
     Deque,
     Generator,
     Generic,
+    Iterator,
     Sequence,
     TypeVar,
     cast,
@@ -19,12 +19,22 @@ import av.audio.stream
 import av.container.input
 import av.frame
 import av.stream
+import av.subtitles
+import av.subtitles.subtitle
 import av.video.stream
 import numpy as np
 import numpy.typing as npt
 
-AVFrameType = TypeVar("AVFrameType", bound=av.VideoFrame | av.AudioFrame)
+AVFrameTypes = (
+    av.video.frame.VideoFrame
+    | av.audio.frame.AudioFrame
+    | av.subtitles.subtitle.SubtitleSet
+)
+
 FrameType = TypeVar("FrameType")
+PTSArray = npt.NDArray[np.int64]
+TimesArray = npt.NDArray[np.float64]
+TimestampsArray = npt.NDArray[np.float64 | np.int64] | list[int | float]
 
 
 @dataclass
@@ -55,32 +65,53 @@ class AVStreamPacketsInfo:
         av_container.seek(0)
 
 
-@dataclass
-class IndexedFrame(Generic[AVFrameType]):
-    av_frame: AVFrameType
-    index: int
+IndexerValueType = TypeVar("IndexerValueType")
+IndexerKeyType = int | float
 
-    def __getattr__(self, key: str):
-        return getattr(self.av_frame, key)
 
-    def __repr__(self):
-        return (
-            f"{self.__class__.__name__}("
-            + ", ".join(
-                f"{key}={getattr(self, key, '?')}"
-                for key in "av_frame index time timestamp".split()
-            )
-            + ")"
-        )
+class Indexer(Generic[IndexerValueType]):
+    def __init__(
+        self,
+        keys: TimestampsArray,
+        values: Sequence[IndexerValueType],
+    ):
+        self.values = values
+        self.keys = np.array(keys)
+
+    @overload
+    def __getitem__(self, key: IndexerKeyType) -> IndexerValueType: ...
+
+    @overload
+    def __getitem__(self, key: slice) -> list[IndexerValueType]: ...
+
+    def __getitem__(
+        self, key: IndexerKeyType | slice
+    ) -> IndexerValueType | Sequence[IndexerValueType]:
+        if isinstance(key, int | float):
+            index = np.searchsorted(self.keys, [key])
+            if self.keys[index] != key:
+                raise IndexError()
+            return self.values[int(index)]
+        elif isinstance(key, slice):
+            start_index, stop_index = np.searchsorted(self.keys, [key.start, key.stop])
+            return self.values[start_index:stop_index]
+        else:
+            raise TypeError(f"key must be int or slice, not {type(key)}")
 
 
 class FrameSlice(Generic[FrameType], Sequence[FrameType]):
-    def __init__(self, target: Sequence, slice: slice):
+    def __init__(self, target: Sequence[FrameType], slice: slice):
         self.target = target
         self.slice = slice
         self.start, self.stop, self.step = slice.indices(len(self.target))
 
-    def __getitem__(self, key):
+    @overload
+    def __getitem__(self, key: int) -> FrameType: ...
+
+    @overload
+    def __getitem__(self, key: slice) -> Sequence[FrameType]: ...
+
+    def __getitem__(self, key: int | slice) -> FrameType | Sequence[FrameType]:
         if isinstance(key, int):
             if key > len(self) - 1:
                 raise IndexError()
@@ -91,10 +122,10 @@ class FrameSlice(Generic[FrameType], Sequence[FrameType]):
         else:
             raise TypeError
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self.stop - self.start
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"{self.__class__.__name__}("
             f'{self.target})'
@@ -106,56 +137,82 @@ class FrameSlice(Generic[FrameType], Sequence[FrameType]):
         )
 
 
-class IndexableAVStream(Generic[AVFrameType], Sequence[IndexedFrame[AVFrameType]]):
+@dataclass
+class ReaderFrame:
+    av_frame: av.video.frame.VideoFrame
+    index: int
+    timestamp: int | float
+
+    @property
+    def ts(self) -> int | float:
+        return self.timestamp
+
+    def __getattr__(self, key: str) -> Any:
+        return getattr(self.av_frame, key)
+
+    def __repr__(self) -> str:
+        return (
+            f"{self.__class__.__name__}("
+            + ", ".join(
+                f"{key}={getattr(self, key, '?')}"
+                for key in "av_frame index time timestamp".split()
+            )
+            + ")"
+        )
+
+
+class Reader(Sequence[ReaderFrame]):
     def __init__(
         self,
-        stream: av.video.stream.VideoStream,
-        frame_wrapper: Callable[[IndexedFrame], Any] = lambda x: x,
-        logger: Logger | None = None,
+        path: str | Path,
+        timestamps: TimestampsArray | None = None,
+        logger: Logger = getLogger(__name__),
     ):
-        self.stream = stream
+        self.path = path
+        self.logger = logger
+        self._timestamps = timestamps
         self._av_decoder_frame_index: int = -1
-        self._av_decoder: Generator[AVFrameType, None, None] | None = None
-        self._av_frame_buffer = Deque[IndexedFrame[AVFrameType]](maxlen=100)
-        self.frame_wrapper = frame_wrapper
+        self._av_decoder: Iterator[AVFrameTypes] | None = None
+        self._av_frame_buffer = Deque[ReaderFrame](maxlen=100)
         self.stats = ContainerActionCounters()
         self.logger = logger
         self.pts  # TODO(dan): this is accessed to fill pts, we can avoid this
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.av_container})"
 
     @cached_property
-    def av_container(self):
-        return cast(av.container.InputContainer, self.stream.container)
-
-    @property
-    def timestamps(self):
-        if self._timestamps is None:
-            return self.times
-        return self._timestamps
+    def av_container(self) -> av.container.InputContainer:
+        container = av.open(str(self.path))  # type: ignore
+        for stream in container.streams.video:
+            stream.thread_type = "FRAME"
+        return container
 
     @cached_property
-    def pts(self):
-        return self.packets_info.pts
+    def av_video_stream(self) -> av.video.stream.VideoStream:
+        return self.av_container.streams.video[0]
 
     @cached_property
-    def times(self):
-        return self.packets_info.times
+    def video_packets_info(self) -> AVStreamPacketsInfo:
+        return AVStreamPacketsInfo(self.av_video_stream)
 
     @cached_property
-    def packets_info(self):
-        return AVStreamPacketsInfo(self.stream)
+    def pts(self) -> PTSArray:
+        return self.video_packets_info.pts
 
-    def get_index_for_pts(self, pts: int):
+    @cached_property
+    def times(self) -> TimesArray:
+        return self.video_packets_info.times
+
+    def get_index_for_pts(self, pts: int) -> int:
         return int(np.searchsorted(self.pts, pts))
 
-    def seek_container_to_index(self, index: int):
+    def seek_container_to_index(self, index: int) -> None:
         wanted_frame_pts = int(self.pts[index])
         if self.logger:
             self.logger.info(f"seeking to {wanted_frame_pts}")
         self.stats.seeks += 1
-        self.av_container.seek(wanted_frame_pts, stream=self.stream)
+        self.av_container.seek(wanted_frame_pts, stream=self.av_video_stream)
         self._av_decoder = None
         self._av_decoder_frame_index = -1
         self._av_frame_buffer.clear()
@@ -183,21 +240,17 @@ class IndexableAVStream(Generic[AVFrameType], Sequence[IndexedFrame[AVFrameType]
         return start_index, stop_index
 
     @overload
-    def __getitem__(self, key: int) -> IndexedFrame[AVFrameType]: ...
+    def __getitem__(self, key: int) -> ReaderFrame: ...
 
     @overload
     def __getitem__(
         self, key: slice
-    ) -> FrameSlice[IndexedFrame[AVFrameType]] | list[IndexedFrame[AVFrameType]]: ...
+    ) -> FrameSlice[ReaderFrame] | list[ReaderFrame]: ...
 
     def __getitem__(
         self, key: int | slice
-    ) -> (
-        IndexedFrame[AVFrameType]
-        | FrameSlice[IndexedFrame[AVFrameType]]
-        | list[IndexedFrame[AVFrameType]]
-    ):
-        result = list[IndexedFrame[AVFrameType]]()
+    ) -> ReaderFrame | FrameSlice[ReaderFrame] | list[ReaderFrame]:
+        result = list[ReaderFrame]()
         start_index, stop_index = self._parse_key(key)
         if self.logger:
             self.logger.debug(f"getting frames [{start_index}:{stop_index}]")
@@ -237,7 +290,7 @@ class IndexableAVStream(Generic[AVFrameType], Sequence[IndexedFrame[AVFrameType]
             self.seek_container_to_index(start_index)
 
         if self._av_decoder is None:
-            self._av_decoder = self.av_container.decode(self.stream)
+            self._av_decoder = self.av_container.decode(self.av_video_stream)
 
         for av_frame in self._av_decoder:
             self.stats.decodes += 1
@@ -248,9 +301,12 @@ class IndexableAVStream(Generic[AVFrameType], Sequence[IndexedFrame[AVFrameType]
             else:
                 self._av_decoder_frame_index += 1
 
-            frame = IndexedFrame(
+            frame_index = self._av_decoder_frame_index
+            assert type(av_frame) is av.video.frame.VideoFrame
+            frame = ReaderFrame(
                 av_frame=av_frame,
-                index=self._av_decoder_frame_index,
+                index=frame_index,
+                timestamp=self.timestamps[frame_index],
             )
             self._av_frame_buffer.append(frame)
             if self.logger:
@@ -262,118 +318,35 @@ class IndexableAVStream(Generic[AVFrameType], Sequence[IndexedFrame[AVFrameType]
         decoded_frame = self._av_frame_buffer[-1]
         if self.logger:
             self.logger.debug(f"returning decoded frame: {decoded_frame}")
-        return self.frame_wrapper(decoded_frame)
+        return decoded_frame
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.pts)
 
-    def __iter__(self) -> Generator[IndexedFrame[AVFrameType], None, None]:
+    def __iter__(
+        self,
+    ) -> Generator[ReaderFrame, None, None]:
         for i in range(len(self)):
             yield self[i]
 
-
-@dataclass
-class ReaderFrame:
-    frame: IndexedFrame
-    timestamp: int | float
-
     @property
-    def ts(self):
-        return self.timestamp
-
-    def __getattr__(self, key: str):
-        return getattr(self.frame, key)
-
-
-class Reader:
-    def __init__(
-        self,
-        path: str | Path,
-        timestamps: npt.NDArray[np.int64 | np.float32] | None = None,
-        logger: Logger = getLogger(__name__),
-    ):
-        self.path = path
-        self.logger = logger
-        self._timestamps = timestamps
-
-    def wrap_frame(self, frame: IndexedFrame):
-        return ReaderFrame(frame, self.timestamps[frame.index])
-
-    @cached_property
-    def video_stream(self):
-        container = av.open(self.path)
-        for stream in container.streams.video:
-            stream.thread_type = "FRAME"
-        return IndexableAVStream(
-            container.streams.video[0],
-            logger=self.logger,
-            frame_wrapper=self.wrap_frame,
-        )
-
-    @cached_property
-    def pts(self):
-        return self.video_stream.pts
-
-    @property
-    def timestamps(self):
+    def timestamps(self) -> TimestampsArray:
         return (
             self._timestamps
             if self._timestamps is not None
-            else self.video_stream.times
+            else self.video_packets_info.times
         )
 
     @cached_property
-    def by_idx(self):
-        return self.video_stream
-
-    @cached_property
-    def by_pts(self):
-        return Indexer(self.pts, self.video_stream)
-
-    @cached_property
-    def by_ts(self):
-        return Indexer(self.timestamps, self.video_stream)
-
-    def __getitem__(self, key: int | slice):
-        return self.video_stream[key]
-
-    def __len__(self):
-        return len(self.video_stream)
-
-    @property
-    def stats(self):
-        return self.video_stream.stats
-
-
-IndexerValueType = TypeVar("IndexerValueType")
-IndexerKeyType = int | float
-
-
-class Indexer(Generic[IndexerValueType]):
-    def __init__(
+    def by_idx(
         self,
-        keys: list[IndexerKeyType],
-        values: Sequence[IndexerValueType],
-    ):
-        self.values = values
-        self.keys = np.array(keys)
+    ) -> "Reader":
+        return self
 
-    @overload
-    def __getitem__(self, key: IndexerKeyType) -> IndexerValueType: ...
+    @cached_property
+    def by_pts(self) -> Indexer[ReaderFrame]:
+        return Indexer(self.pts, self)
 
-    @overload
-    def __getitem__(self, key: slice) -> list[IndexerValueType]: ...
-
-    def __getitem__(
-        self, key: IndexerKeyType | slice
-    ) -> IndexerValueType | Sequence[IndexerValueType]:
-        if isinstance(key, int | float):
-            index = np.searchsorted(self.keys, [key])
-            if self.keys[index] != key:
-                raise IndexError()
-            return self.values[int(index)]
-        elif isinstance(key, slice):
-            start_index, stop_index = np.searchsorted(self.keys, [key.start, key.stop])
-            return self.values[start_index:stop_index]
-        else:
-            raise TypeError(f"key must be int or slice, not {type(key)}")
+    @cached_property
+    def by_ts(self) -> Indexer[ReaderFrame]:
+        return Indexer(self.timestamps, self)
