@@ -72,8 +72,8 @@ class Reader:
             yield self.by_idx[i]
 
     def _decode(self) -> Iterator[VideoFrame]:
-        self.stats.decodes += 1
         for frame in self.container.decode(video=0):
+            self.stats.decodes += 1
             assert frame
             frame_idx = self._pts_to_idx[frame.pts]
             frame = VideoFrame(frame, frame_idx)
