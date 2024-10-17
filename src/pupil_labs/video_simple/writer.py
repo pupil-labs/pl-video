@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 from types import TracebackType
-from typing import Optional, Type
+from typing import Optional
 
 import av
 import numpy as np

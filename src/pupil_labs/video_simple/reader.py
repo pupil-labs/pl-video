@@ -118,8 +118,8 @@ class FrameSlice(Generic[FrameType], Sequence[FrameType]):
                 raise IndexError()
             return self.target[key + self.start]
         elif isinstance(key, slice):
-            raise NotImplementedError()  # TODO(dan): implement
-            return FrameSlice(self, new_slice)
+            # TODO(dan): implement FrameSlice(self, new_slice)
+            raise NotImplementedError()
         else:
             raise TypeError
 
@@ -222,7 +222,7 @@ class Reader(Sequence[VideoFrame]):
     @overload
     def __getitem__(self, key: slice) -> FrameSlice[VideoFrame] | list[VideoFrame]: ...
 
-    def __getitem__(
+    def __getitem__(  # noqa: C901
         self, key: int | slice
     ) -> VideoFrame | FrameSlice[VideoFrame] | list[VideoFrame]:
         result = list[VideoFrame]()
