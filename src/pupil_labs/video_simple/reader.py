@@ -3,7 +3,6 @@ from functools import cached_property
 from logging import Logger, getLogger
 from pathlib import Path
 from typing import (
-    Any,
     Deque,
     Generator,
     Generic,
