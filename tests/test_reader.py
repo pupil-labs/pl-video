@@ -18,21 +18,27 @@ from .utils import measure_fps
 class PacketData:
     pts: list[int]
     times: list[float]
+    keyframe_indices: list[int]
 
 
 @pytest.fixture
 def correct_packet_info(video_path: Path) -> PacketData:
     pts = []
     times = []
+    keyframe_indices = []
     container = av.open(str(video_path))  # type:ignore
     stream = container.streams.video[0]
     assert stream.time_base
+    index = 0
     for packet in container.demux(stream):
         if packet.pts is None:
             continue
         pts.append(packet.pts)
         times.append(float(packet.pts * stream.time_base))
-    return PacketData(pts=pts, times=times)
+        if packet.is_keyframe:
+            keyframe_indices.append(index)
+        index += 1
+    return PacketData(pts=pts, times=times, keyframe_indices=keyframe_indices)
 
 
 @pytest.fixture
@@ -149,3 +155,14 @@ def test_by_ts_without_passed_in_timestamps(
 
 def test_by_ts_with_passed_in_timestamps(reader_with_ts: Reader) -> None:
     assert reader_with_ts.by_ts[0.3].ts == 0.3
+
+
+def test_backward_iteration(reader: Reader, correct_packet_info: PacketData) -> None:
+    total_keyframes = len(correct_packet_info.keyframe_indices)
+    assert total_keyframes <= len(correct_packet_info.pts)
+
+    for i in reversed(range(len(reader))):
+        reader[i]
+
+    # we expect keyframe seeks to occur while iterating backwards, one per keyframe
+    assert reader.stats.seeks == total_keyframes

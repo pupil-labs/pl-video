@@ -54,16 +54,26 @@ class AVStreamPacketsInfo:
         av_container.seek(0)
 
         pts = []
+        keyframe_indices = []
+        frame_index = 0
         for packet in av_container.demux(self.av_stream):
             if packet.pts is None:
                 continue
 
             pts.append(packet.pts)
-
+            if packet.is_keyframe:
+                keyframe_indices.append(frame_index)
+            frame_index += 1
         self.pts = np.array(pts, np.int64)
-        assert self.av_stream.time_base
-        self.times = self.pts * float(self.av_stream.time_base)
+        self.times = self.pts
+        self.keyframe_indices = np.array(keyframe_indices)
+        if self.av_stream.time_base is not None:
+            self.times = self.pts * float(self.av_stream.time_base)
         av_container.seek(0)
+
+    @property
+    def largest_frame_group_size(self) -> int:
+        return int(max(np.diff(self.keyframe_indices)))
 
 
 IndexerValueType = TypeVar("IndexerValueType")
@@ -171,7 +181,15 @@ class Reader(Sequence[VideoFrame]):
 
     @cached_property
     def video_packets_info(self) -> AVStreamPacketsInfo:
-        return AVStreamPacketsInfo(self.av_video_stream)
+        info = AVStreamPacketsInfo(self.av_video_stream)
+        # ensure that the buffer can fit an entire keyframe + subframes worth of frames
+        buffer_size = max(
+            info.largest_frame_group_size * 2, self._av_frame_buffer.maxlen
+        )
+        # sanity check
+        assert buffer_size < 5000
+        self._av_frame_buffer = Deque[VideoFrame](maxlen=buffer_size)
+        return info
 
     @cached_property
     def pts(self) -> PTSArray:
