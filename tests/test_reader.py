@@ -1,25 +1,54 @@
+from dataclasses import dataclass
 from pathlib import Path
-import av
 
-from pupil_labs.video_simple.reader import Reader
+import av
 import pytest
+
+from pupil_labs.video_simple.reader_new import AVStreamPacketsInfo, Reader
 
 from .utils import measure_fps
 
 
+@dataclass
+class PacketData:
+    pts: list[int]
+    times: list[float]
+
+
 @pytest.fixture
-def correct_pts(video_path: Path):
-    correct_pts = []
-    for packet in av.open(str(video_path)).demux(video=0):
+def correct_packet_info(video_path: Path):
+    pts = []
+    times = []
+    container = av.open(str(video_path))
+    stream = container.streams.video[0]
+    assert stream.time_base
+    for packet in container.demux(stream):
         if packet.pts is None:
             continue
-        correct_pts.append(packet.pts)
-    return correct_pts
+        pts.append(packet.pts)
+        times.append(float(packet.pts * stream.time_base))
+    return PacketData(pts=pts, times=times)
+
+
+@pytest.fixture
+def correct_pts(correct_packet_info: AVStreamPacketsInfo):
+    return correct_packet_info.pts
+
+
+@pytest.fixture
+def correct_av_times(correct_packet_info: AVStreamPacketsInfo):
+    return correct_packet_info.times
 
 
 @pytest.fixture
 def reader(video_path: Path):
     return Reader(video_path)
+
+
+@pytest.fixture
+def reader_with_ts(video_path: Path, correct_pts):
+    timestamps = [i / 10.0 for i in range(len(correct_pts))]
+    return Reader(video_path, timestamps)
 
 
 def test_pts(reader: Reader, correct_pts):
@@ -74,8 +103,16 @@ def test_seek_avoidance(reader: Reader):
     assert reader.stats.seeks == 0
     assert reader.stats.decodes == 2
 
-    # getting the 10th frame will require a seek, but the rest of the slice will not
-    reader.by_idx[10:20]
+    # slices are lazy, so they don't actually seek or decode
+    frames = reader.by_idx[10:20]
+    assert len(frames) == 10
+    assert reader.stats.seeks == 0
+    assert reader.stats.decodes == 2
+
+    # cosuming the slice will require a seek, but the rest of the slice will not
+    for frame in frames:
+        pass
+    assert len(frames) == 10
     assert reader.stats.seeks == 1
     # since the keyframe is at 0, we will need to decode all frames from 0 to 20
     assert reader.stats.decodes == 22
@@ -93,3 +130,22 @@ def test_arbitrary_slices(reader: Reader, correct_pts):
     assert [f.pts for f in reader.by_idx[10:20]] == correct_pts[10:20]
     assert [f.pts for f in reader.by_idx[20:30]] == correct_pts[20:30]
     assert [f.pts for f in reader.by_idx[5:8]] == correct_pts[5:8]
+
+
+def test_by_ts_without_passed_in_timestamps(
+    reader: Reader, correct_packet_info: AVStreamPacketsInfo
+):
+    for time in correct_packet_info.times:
+        if time > 1:
+            first_after_1s = time
+            break
+    assert reader.by_ts[1.0:5.0][0].time == first_after_1s
+
+
+def test_by_ts_with_passed_in_timestamps(reader_with_ts: Reader):
+    for time in reader_with_ts.timestamps:
+        if time > 1:
+            first_after_1s = time
+            break
+
+    assert reader_with_ts.by_ts[0.3].ts == 0.3
