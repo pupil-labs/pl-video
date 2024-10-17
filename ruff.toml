@@ -27,4 +27,4 @@ ignore = [
 # See https://github.com/jaraco/skeleton/pull/133#issuecomment-2239538373
 preview = true
 # https://docs.astral.sh/ruff/settings/#format_quote-style
-quote-style = "preserve"
+quote-style = "double"
