@@ -24,7 +24,7 @@ class VideoFrame:
             f"{self.__class__.__name__}("
             + ", ".join(
                 f"{key}={getattr(self, key, '?')}"
-                for key in "av_frame index time timestamp".split()
+                for key in "av_frame index time ts".split()
             )
             + ")"
         )

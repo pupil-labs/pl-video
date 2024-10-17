@@ -276,7 +276,10 @@ class Reader(Sequence[VideoFrame]):
 
         # if range requested, return a lazy list of the video frames
         if isinstance(key, slice):
-            return FrameSlice(self, key)
+            result = FrameSlice(self, key)
+            if stop_index - start_index < self._av_frame_buffer.maxlen:
+                return list(result)
+            return result
 
         # otherwise return the frame, buffering up seen frames for further access
         if start_index != self._av_decoder_frame_index + 1:
