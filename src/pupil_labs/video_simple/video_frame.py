@@ -1,125 +1,58 @@
 import warnings
-from enum import Enum
+from dataclasses import dataclass
+from typing import Any, Literal, cast
 
 import av
+import av.video.frame
 import numpy as np
 import numpy.typing as npt
 
+PixelFormat = Literal["gray", "bgr24", "rgb24", "yuv420p", "yuv444p"]
 
-class PixelFormat(Enum):
-    gray = "gray"
-    bgr24 = "bgr24"
-    rgb24 = "rgb24"
-    yuv420p = "yuv420p"
-    yuv444p = "yuv444p"
 
-    def __str__(self) -> str:
-        return self.value
+@dataclass
+class VideoFrame:
+    av_frame: av.video.frame.VideoFrame
+    index: int
+    ts: int | float
+
+    def __getattr__(self, key: str) -> Any:
+        return getattr(self.av_frame, key)
 
     def __repr__(self) -> str:
-        return self.value
-
-
-class VideoFrame:
-    def __init__(self, frame: av.VideoFrame, index: int):
-        self.av_frame = frame
-        self._index = index
-
-    # @property
-    # def dts(self) -> int:
-    #     return self.av_frame.dts
-
-    @property
-    def index(self) -> int:
-        return self._index
-
-    # @index.setter
-    # def index(self, index: int):
-    #     self._index = index
+        return (
+            f"{self.__class__.__name__}("
+            + ", ".join(
+                f"{key}={getattr(self, key, '?')}"
+                for key in "av_frame index time timestamp".split()
+            )
+            + ")"
+        )
 
     @property
     def pts(self) -> int | None:
         return self.av_frame.pts
-
-    # @pts.setter
-    # def pts(self, pts: int | None):
-    #     self.av_frame.pts = pts
-
-    # @property
-    # def side_data(self) -> av.sidedata.sidedata.SideDataContainer:
-    #     """
-    #     Side data of the frame
-    #     """
-    #     return self.av_frame.side_data
-
-    # @property
-    # def time(self) -> float | None:
-    #     """
-    #     Offset in seconds of the frame in the stream
-    #     """
-    #     av_frame_time = self.av_frame.time
-    #     if av_frame_time is not None:
-    #         return av_frame_time
-    #     if self.time_base and self.pts is not None:
-    #         return float(self.pts * self.time_base)
-    #     return None
-
-    # @time.setter
-    # def time(self, value: float | None = None) -> None:
-    #     if value is None:
-    #         if self.time_base is not None:
-    #             raise ValueError("frame.time can not be None when time_base is set")
-    #         self.pts = None
-    #     else:
-    #         if self.time_base is None:
-    #             if self.stream and self.stream.time_base:
-    #                 self.time_base = self.stream.time_base
-    #             if self.time_base is None:
-    #                 raise ValueError("time_base not known, can't set frame.time")
-    #         self.pts = int(value / self.time_base)
-
-    # offset_secs = time
-
-    # @property
-    # def time_base(self) -> Fraction | None:
-    #     """
-    #     Returns the time_base of this frame
-    #     """
-    #     time_base = self.av_frame.time_base
-    #     # if time_base is None:
-    #     #     if self.stream:
-    #     #         if self.stream.time_base:
-    #     #             time_base = self.stream.time_base
-    #     #         elif self.stream.average_rate:
-    #     #             time_base = Fraction(1, self.stream.average_rate)
-    #     return time_base
-
-    # @time_base.setter
-    # def time_base(self, value) -> None:
-    #     self.av_frame.time_base = value
-
-    # def __repr__(self):
 
     @property
     def gray(self) -> npt.NDArray[np.uint8]:
         """
         Numpy image array in gray format
         """
-        return self.to_ndarray(PixelFormat.gray)
+        return self.to_ndarray("gray")
 
     @property
     def bgr(self) -> npt.NDArray[np.uint8]:
         """
         Numpy image array in BGR format
         """
-        return self.to_ndarray(PixelFormat.bgr24)
+        return self.to_ndarray("bgr24")
 
     @property
     def rgb(self) -> npt.NDArray[np.uint8]:
         """
         Numpy image array in RGB format
         """
-        return self.to_ndarray(PixelFormat.rgb24)
+        return self.to_ndarray("rgb24")
 
     def to_ndarray(self, pixel_format: PixelFormat) -> npt.NDArray[np.uint8]:
         """
@@ -130,15 +63,15 @@ class VideoFrame:
 
 
 def av_frame_to_ndarray_fast(
-    av_frame: av.VideoFrame, pixel_format: PixelFormat
+    av_frame: av.VideoFrame, pixel_format: PixelFormat | None
 ) -> npt.NDArray[np.uint8]:
     """
     Returns an image pixel numpy array for an av.VideoFrame in `format`
     skipping conversion by using buffers directly if possible for performance
     """
-    if pixel_format == PixelFormat.gray:
+    if pixel_format == "gray":
         if av_frame.format.name == "gray":
-            return np.frombuffer(av_frame.planes[0], np.uint8).reshape(
+            result = np.frombuffer(av_frame.planes[0], np.uint8).reshape(
                 av_frame.height, av_frame.width
             )
         elif av_frame.format.name.startswith("yuv"):
@@ -163,12 +96,9 @@ def av_frame_to_ndarray_fast(
                 # is limited from 16-235 instead of converted to full range 0-255
                 # this is done for performance reasons
                 # gray = limited_yuv420p_to_full(gray)
+            result = gray
 
-            return gray
-    elif pixel_format in (
-        PixelFormat.bgr24,
-        PixelFormat.rgb24,
-    ):  # TODO(dan): is this worth it?
+    elif pixel_format in ("bgr24", "rgb24"):  # TODO(dan): is this worth it?
         if av_frame.format.name == pixel_format:
             plane = av_frame.planes[0]
 
@@ -185,8 +115,8 @@ def av_frame_to_ndarray_fast(
                 image = np.frombuffer(av_frame.planes[0], np.uint8).reshape(
                     av_frame.height, av_frame.width, 3
                 )
-            return image
+            result = image
+    else:
+        result = av_frame.to_ndarray(format=pixel_format)
 
-    if pixel_format is not None:
-        pixel_format = str(pixel_format)
-    return av_frame.to_ndarray(format=pixel_format)
+    return cast(npt.NDArray[np.uint8], result)

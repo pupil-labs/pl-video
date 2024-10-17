@@ -25,6 +25,8 @@ import av.video.stream
 import numpy as np
 import numpy.typing as npt
 
+from pupil_labs.video_simple.video_frame import VideoFrame
+
 AVFrameTypes = (
     av.video.frame.VideoFrame
     | av.audio.frame.AudioFrame
@@ -137,27 +139,7 @@ class FrameSlice(Generic[FrameType], Sequence[FrameType]):
         )
 
 
-@dataclass
-class ReaderFrame:
-    av_frame: av.video.frame.VideoFrame
-    index: int
-    ts: int | float
-
-    def __getattr__(self, key: str) -> Any:
-        return getattr(self.av_frame, key)
-
-    def __repr__(self) -> str:
-        return (
-            f"{self.__class__.__name__}("
-            + ", ".join(
-                f"{key}={getattr(self, key, '?')}"
-                for key in "av_frame index time timestamp".split()
-            )
-            + ")"
-        )
-
-
-class Reader(Sequence[ReaderFrame]):
+class Reader(Sequence[VideoFrame]):
     def __init__(
         self,
         path: str | Path,
@@ -169,7 +151,7 @@ class Reader(Sequence[ReaderFrame]):
         self._timestamps = timestamps
         self._av_decoder_frame_index: int = -1
         self._av_decoder: Iterator[av.video.VideoFrame] | None = None
-        self._av_frame_buffer = Deque[ReaderFrame](maxlen=100)
+        self._av_frame_buffer = Deque[VideoFrame](maxlen=100)
         self.stats = ContainerActionCounters()
         self.logger = logger
         self.pts  # TODO(dan): this is accessed to fill pts, we can avoid this
@@ -236,17 +218,15 @@ class Reader(Sequence[ReaderFrame]):
         return start_index, stop_index
 
     @overload
-    def __getitem__(self, key: int) -> ReaderFrame: ...
+    def __getitem__(self, key: int) -> VideoFrame: ...
 
     @overload
-    def __getitem__(
-        self, key: slice
-    ) -> FrameSlice[ReaderFrame] | list[ReaderFrame]: ...
+    def __getitem__(self, key: slice) -> FrameSlice[VideoFrame] | list[VideoFrame]: ...
 
     def __getitem__(
         self, key: int | slice
-    ) -> ReaderFrame | FrameSlice[ReaderFrame] | list[ReaderFrame]:
-        result = list[ReaderFrame]()
+    ) -> VideoFrame | FrameSlice[VideoFrame] | list[VideoFrame]:
+        result = list[VideoFrame]()
         start_index, stop_index = self._parse_key(key)
         if self.logger:
             self.logger.debug(f"getting frames [{start_index}:{stop_index}]")
@@ -298,7 +278,7 @@ class Reader(Sequence[ReaderFrame]):
                 self._av_decoder_frame_index += 1
 
             frame_index = self._av_decoder_frame_index
-            frame = ReaderFrame(
+            frame = VideoFrame(
                 av_frame=av_frame,
                 index=frame_index,
                 ts=self.timestamps[frame_index],
@@ -320,7 +300,7 @@ class Reader(Sequence[ReaderFrame]):
 
     def __iter__(
         self,
-    ) -> Generator[ReaderFrame, None, None]:
+    ) -> Generator[VideoFrame, None, None]:
         for i in range(len(self)):
             yield self[i]
 
@@ -339,9 +319,9 @@ class Reader(Sequence[ReaderFrame]):
         return self
 
     @cached_property
-    def by_pts(self) -> Indexer[ReaderFrame]:
+    def by_pts(self) -> Indexer[VideoFrame]:
         return Indexer(self.pts, self)
 
     @cached_property
-    def by_ts(self) -> Indexer[ReaderFrame]:
+    def by_ts(self) -> Indexer[VideoFrame]:
         return Indexer(self.timestamps, self)
