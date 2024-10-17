@@ -1,6 +1,6 @@
 import numpy as np
-import cv2
-from pupil_labs.video_simple import Writer, Reader, PixelFormat
+
+from pupil_labs.video_simple import PixelFormat, Reader, Writer
 
 from .utils import measure_fps
 

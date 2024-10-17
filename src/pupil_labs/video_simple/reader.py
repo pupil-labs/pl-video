@@ -141,11 +141,7 @@ class FrameSlice(Generic[FrameType], Sequence[FrameType]):
 class ReaderFrame:
     av_frame: av.video.frame.VideoFrame
     index: int
-    timestamp: int | float
-
-    @property
-    def ts(self) -> int | float:
-        return self.timestamp
+    ts: int | float
 
     def __getattr__(self, key: str) -> Any:
         return getattr(self.av_frame, key)
@@ -172,7 +168,7 @@ class Reader(Sequence[ReaderFrame]):
         self.logger = logger
         self._timestamps = timestamps
         self._av_decoder_frame_index: int = -1
-        self._av_decoder: Iterator[AVFrameTypes] | None = None
+        self._av_decoder: Iterator[av.video.VideoFrame] | None = None
         self._av_frame_buffer = Deque[ReaderFrame](maxlen=100)
         self.stats = ContainerActionCounters()
         self.logger = logger
@@ -302,11 +298,10 @@ class Reader(Sequence[ReaderFrame]):
                 self._av_decoder_frame_index += 1
 
             frame_index = self._av_decoder_frame_index
-            assert type(av_frame) is av.video.frame.VideoFrame
             frame = ReaderFrame(
                 av_frame=av_frame,
                 index=frame_index,
-                timestamp=self.timestamps[frame_index],
+                ts=self.timestamps[frame_index],
             )
             self._av_frame_buffer.append(frame)
             if self.logger:

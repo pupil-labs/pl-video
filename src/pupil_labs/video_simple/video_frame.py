@@ -1,5 +1,6 @@
 import warnings
 from enum import Enum
+
 import av
 import numpy as np
 import numpy.typing as npt
@@ -12,10 +13,10 @@ class PixelFormat(Enum):
     yuv420p = "yuv420p"
     yuv444p = "yuv444p"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.value
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.value
 
 

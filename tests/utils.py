@@ -1,9 +1,14 @@
 import time
+from typing import Generator, Iterator, TypeVar
 
 import tqdm
 
+T = TypeVar("T")
 
-def measure_fps(generator, total=None):
+
+def measure_fps(
+    generator: Iterator[T], total: int | None = None
+) -> Generator[T, None, None]:
     n_frames = 0
     start = time.time()
     for item in tqdm.tqdm(generator, unit=" frame", total=total):
@@ -13,4 +18,4 @@ def measure_fps(generator, total=None):
     taken_secs = end - start
     fps = n_frames / taken_secs
     n = int(fps / 10000.0 * 50)
-    print(f"total time={round(taken_secs*1000):5}ms {round(fps):4}fps {n * '█'}")
+    print(f"total time={round(taken_secs * 1000):5}ms {round(fps):4}fps {n * '█'}")
