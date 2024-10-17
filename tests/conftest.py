@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -8,11 +9,11 @@ TEST_DATA_PATH = ROOT_PATH / "tests" / "data"
 
 
 @pytest.fixture
-def test_data_path():
+def test_data_path() -> Path:
     return TEST_DATA_PATH
 
 
-def pytest_generate_tests(metafunc):
+def pytest_generate_tests(metafunc: Any) -> None:
     # video_paths = metafunc.config.getoption("video_path")
 
     # main_video = TEST_DATA_PATH / "old/world.mp4"
