@@ -98,24 +98,23 @@ def av_frame_to_ndarray_fast(
                 # gray = limited_yuv420p_to_full(gray)
             result = gray
 
-    elif pixel_format in ("bgr24", "rgb24"):  # TODO(dan): is this worth it?
-        if av_frame.format.name == pixel_format:
-            plane = av_frame.planes[0]
+    elif pixel_format in ("bgr24", "rgb24") and av_frame.format.name == pixel_format:
+        plane = av_frame.planes[0]
 
-            # TODO(dan): find out why np.frombuffer(plane) didn't work here
-            # for bgr, frombuffer is faster than array
-            image = np.array(plane)
+        # TODO(dan): find out why np.frombuffer(plane) didn't work here
+        # for bgr, frombuffer is faster than array
+        image = np.array(plane)
 
-            if 3 * av_frame.height * av_frame.width != len(image):
-                image = image.reshape(-1, plane.line_size)
-                image = image[:, : 3 * av_frame.width]
-                # image = np.ascontiguousarray(image)
-                image = image.reshape(av_frame.height, av_frame.width, 3)
-            else:
-                image = np.frombuffer(av_frame.planes[0], np.uint8).reshape(
-                    av_frame.height, av_frame.width, 3
-                )
-            result = image
+        if 3 * av_frame.height * av_frame.width != len(image):
+            image = image.reshape(-1, plane.line_size)
+            image = image[:, : 3 * av_frame.width]
+            # image = np.ascontiguousarray(image)
+            image = image.reshape(av_frame.height, av_frame.width, 3)
+        else:
+            image = np.frombuffer(av_frame.planes[0], np.uint8).reshape(
+                av_frame.height, av_frame.width, 3
+            )
+        result = image
     else:
         result = av_frame.to_ndarray(format=pixel_format)
 
