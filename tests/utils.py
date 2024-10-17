@@ -1,5 +1,5 @@
 import time
-from typing import Generator, Iterator, TypeVar
+from typing import Generator, Iterable, TypeVar
 
 import tqdm
 
@@ -7,7 +7,7 @@ T = TypeVar("T")
 
 
 def measure_fps(
-    generator: Iterator[T], total: int | None = None
+    generator: Iterable[T], total: int | None = None
 ) -> Generator[T, None, None]:
     n_frames = 0
     start = time.time()
