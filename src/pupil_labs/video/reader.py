@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from functools import cached_property
 from logging import getLogger
 from pathlib import Path
+from types import TracebackType
 from typing import (
     Generic,
     TypeVar,
@@ -65,6 +66,8 @@ class AVStreamPacketsInfo:
 
     @property
     def largest_frame_group_size(self) -> int:
+        if len(self.keyframe_indices) < 2:
+            return 0
         return int(max(np.diff(self.keyframe_indices)))
 
 
@@ -325,3 +328,17 @@ class Reader(Sequence[VideoFrame]):
     @cached_property
     def by_ts(self) -> Indexer[VideoFrame]:
         return Indexer(self.timestamps, self)
+
+    def __enter__(self) -> "Reader":
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        self.close()
+
+    def close(self) -> None:
+        self.av_container.close()
