@@ -7,7 +7,7 @@ import av
 import numpy as np
 import numpy.typing as npt
 
-from pupil_labs.video_simple.video_frame import PixelFormat
+from pupil_labs.video.video_frame import PixelFormat
 
 
 @dataclass

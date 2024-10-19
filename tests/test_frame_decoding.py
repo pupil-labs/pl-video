@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from pupil_labs.video_simple import PixelFormat
-from pupil_labs.video_simple.reader import Reader
+from pupil_labs.video import PixelFormat
+from pupil_labs.video.reader import Reader
 
 from .utils import measure_fps
 

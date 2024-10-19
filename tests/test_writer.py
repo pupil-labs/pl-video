@@ -2,7 +2,7 @@ from pathlib import Path
 
 import numpy as np
 
-from pupil_labs.video_simple import Reader, Writer
+from pupil_labs.video import Reader, Writer
 
 from .utils import measure_fps
 
@@ -27,7 +27,7 @@ def test_losslessness(tmp_path: Path) -> None:
             # When converting yuv444p to e.g. rgb24, numeric precision is lost and results are slightly off.
             writer.write(img, pix_fmt="yuv444p")
 
-    with Reader("out.mp4") as reader:
+    with Reader(tmp_path / "out.mp4") as reader:
         for img_written, frame in zip(written_images, reader):
             img_read = frame.to_ndarray(pixel_format="yuv444p")
             assert np.allclose(img_written, img_read)
