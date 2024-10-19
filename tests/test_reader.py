@@ -114,19 +114,26 @@ def test_seek_avoidance(reader: Reader) -> None:
     assert reader.stats.seeks == 0
     assert reader.stats.decodes == 2
 
-    # slices are lazy, so they don't actually seek or decode
+    # Short slices are loaded into the buffer, so they do require one seek
     frames = reader.by_idx[10:20]
-    assert len(frames) == 10
-    assert reader.stats.seeks == 0
-    assert reader.stats.decodes == 2
-
-    # cosuming the slice will require a seek, but the rest of the slice will not
-    for _ in frames:
-        pass
     assert len(frames) == 10
     assert reader.stats.seeks == 1
     # since the keyframe is at 0, we will need to decode all frames from 0 to 20
     assert reader.stats.decodes == 22
+
+    # Long slices are lazy, so they don't actually seek or decode
+    frames = reader.by_idx[30:]
+    assert len(frames) == len(reader) - 30
+    assert reader.stats.seeks == 1
+    assert reader.stats.decodes == 22
+
+    # cosuming the slice will require a seek, but the rest of the slice will not
+    for _ in frames:
+        pass
+    assert len(frames) == len(reader) - 30
+    assert reader.stats.seeks == 2
+    # Since we don't know where exactly the keyframe is, we can only compare against a minimum number of decodes
+    assert reader.stats.decodes >= 22 + len(reader) - 30
 
 
 def test_arbitrary_index(reader: Reader, correct_pts: PTSArray) -> None:
