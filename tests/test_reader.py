@@ -4,7 +4,7 @@ from pathlib import Path
 import av
 import pytest
 
-from pupil_labs.video_simple.reader import (
+from pupil_labs.video.reader import (
     AVStreamPacketsInfo,
     PTSArray,
     Reader,
@@ -121,7 +121,7 @@ def test_seek_avoidance(reader: Reader) -> None:
     assert reader.stats.decodes == 2
 
     # cosuming the slice will require a seek, but the rest of the slice will not
-    for frame in frames:
+    for _ in frames:
         pass
     assert len(frames) == 10
     assert reader.stats.seeks == 1
@@ -143,9 +143,7 @@ def test_arbitrary_slices(reader: Reader, correct_pts: PTSArray) -> None:
     assert [f.pts for f in reader.by_idx[5:8]] == correct_pts[5:8]
 
 
-def test_by_ts_without_passed_in_timestamps(
-    reader: Reader, correct_packet_info: AVStreamPacketsInfo
-) -> None:
+def test_by_ts_without_passed_in_timestamps(reader: Reader, correct_packet_info: AVStreamPacketsInfo) -> None:
     for time in correct_packet_info.times:
         if time > 1:
             first_after_1s = time

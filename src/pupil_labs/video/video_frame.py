@@ -22,10 +22,7 @@ class VideoFrame:
     def __repr__(self) -> str:
         return (
             f"{self.__class__.__name__}("
-            + ", ".join(
-                f"{key}={getattr(self, key, '?')}"
-                for key in "av_frame index time ts".split()
-            )
+            + ", ".join(f"{key}={getattr(self, key, '?')}" for key in "av_frame index time ts".split())
             + ")"
         )
 
@@ -62,18 +59,14 @@ class VideoFrame:
         return av_frame_to_ndarray_fast(self.av_frame, pixel_format)
 
 
-def av_frame_to_ndarray_fast(
-    av_frame: av.VideoFrame, pixel_format: PixelFormat | None
-) -> npt.NDArray[np.uint8]:
+def av_frame_to_ndarray_fast(av_frame: av.VideoFrame, pixel_format: PixelFormat | None) -> npt.NDArray[np.uint8]:
     """
     Returns an image pixel numpy array for an av.VideoFrame in `format`
     skipping conversion by using buffers directly if possible for performance
     """
     if pixel_format == "gray":
         if av_frame.format.name == "gray":
-            result = np.frombuffer(av_frame.planes[0], np.uint8).reshape(
-                av_frame.height, av_frame.width
-            )
+            result = np.frombuffer(av_frame.planes[0], np.uint8).reshape(av_frame.height, av_frame.width)
         elif av_frame.format.name.startswith("yuv"):
             plane = av_frame.planes[0]
             plane_data = np.frombuffer(plane, np.uint8)
@@ -89,7 +82,8 @@ def av_frame_to_ndarray_fast(
             if av_frame.format.name == "yuv420p":
                 warnings.warn(
                     "using Y plane for yuv420p gray images, range is 16-235 instead of 0-255."
-                    " Use .av_frame.to_ndarray(format='gray') for full range (4x slower)"
+                    " Use .av_frame.to_ndarray(format='gray') for full range (4x slower)",
+                    stacklevel=2,
                 )
                 # av.to_ndarray(format='gray') returns 0-255 for gray values
                 # but here reading the Y from planes for yuv420p the output
@@ -111,9 +105,7 @@ def av_frame_to_ndarray_fast(
             # image = np.ascontiguousarray(image)
             image = image.reshape(av_frame.height, av_frame.width, 3)
         else:
-            image = np.frombuffer(av_frame.planes[0], np.uint8).reshape(
-                av_frame.height, av_frame.width, 3
-            )
+            image = np.frombuffer(av_frame.planes[0], np.uint8).reshape(av_frame.height, av_frame.width, 3)
         result = image
     else:
         result = av_frame.to_ndarray(format=pixel_format)

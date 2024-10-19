@@ -1,13 +1,11 @@
+from collections import deque
+from collections.abc import Generator, Iterator, Sequence
 from dataclasses import dataclass
 from functools import cached_property
-from logging import Logger, getLogger
+from logging import getLogger
 from pathlib import Path
 from typing import (
-    Deque,
-    Generator,
     Generic,
-    Iterator,
-    Sequence,
     TypeVar,
     cast,
     overload,
@@ -24,13 +22,9 @@ import av.video.stream
 import numpy as np
 import numpy.typing as npt
 
-from pupil_labs.video_simple.video_frame import VideoFrame
+from pupil_labs.video.video_frame import VideoFrame
 
-AVFrameTypes = (
-    av.video.frame.VideoFrame
-    | av.audio.frame.AudioFrame
-    | av.subtitles.subtitle.SubtitleSet
-)
+AVFrameTypes = av.video.frame.VideoFrame | av.audio.frame.AudioFrame | av.subtitles.subtitle.SubtitleSet
 
 FrameType = TypeVar("FrameType")
 PTSArray = npt.NDArray[np.int64]
@@ -46,9 +40,7 @@ class ContainerActionCounters:
 
 
 class AVStreamPacketsInfo:
-    def __init__(
-        self, av_stream: av.video.stream.VideoStream | av.audio.stream.AudioStream
-    ):
+    def __init__(self, av_stream: av.video.stream.VideoStream | av.audio.stream.AudioStream):
         self.av_stream = av_stream
         av_container = cast(av.container.InputContainer, self.av_stream.container)
         av_container.seek(0)
@@ -95,9 +87,7 @@ class Indexer(Generic[IndexerValueType]):
     @overload
     def __getitem__(self, key: slice) -> list[IndexerValueType]: ...
 
-    def __getitem__(
-        self, key: IndexerKeyType | slice
-    ) -> IndexerValueType | Sequence[IndexerValueType]:
+    def __getitem__(self, key: IndexerKeyType | slice) -> IndexerValueType | Sequence[IndexerValueType]:
         if isinstance(key, int | float):
             index = np.searchsorted(self.keys, [key])
             if self.keys[index] != key:
@@ -111,10 +101,10 @@ class Indexer(Generic[IndexerValueType]):
 
 
 class FrameSlice(Generic[FrameType], Sequence[FrameType]):
-    def __init__(self, target: Sequence[FrameType], slice: slice):
+    def __init__(self, target: Sequence[FrameType], slice_value: slice):
         self.target = target
-        self.slice = slice
-        self.start, self.stop, self.step = slice.indices(len(self.target))
+        self.slice = slice_value
+        self.start, self.stop, self.step = slice_value.indices(len(self.target))
 
     @overload
     def __getitem__(self, key: int) -> FrameType: ...
@@ -153,17 +143,15 @@ class Reader(Sequence[VideoFrame]):
         self,
         path: str | Path,
         timestamps: TimestampsArray | None = None,
-        logger: Logger = getLogger(__name__),
     ):
         self.path = path
-        self.logger = logger
+        self.logger = getLogger(__name__)
         self._timestamps = timestamps
         self._av_decoder_frame_index: int = -1
         self._av_decoder: Iterator[av.video.VideoFrame] | None = None
-        self._av_frame_buffer = Deque[VideoFrame](maxlen=100)
+        self._av_frame_buffer = deque[VideoFrame](maxlen=100)
         self.stats = ContainerActionCounters()
-        self.logger = logger
-        self.pts  # TODO(dan): this is accessed to fill pts, we can avoid this
+        self.pts  # TODO(dan): this is accessed to fill pts, we can avoid this  # noqa: B018
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.av_container})"
@@ -183,12 +171,10 @@ class Reader(Sequence[VideoFrame]):
     def video_packets_info(self) -> AVStreamPacketsInfo:
         info = AVStreamPacketsInfo(self.av_video_stream)
         # ensure that the buffer can fit an entire keyframe + subframes worth of frames
-        buffer_size = max(
-            info.largest_frame_group_size * 2, self._av_frame_buffer.maxlen
-        )
+        buffer_size = max(info.largest_frame_group_size * 2, self._av_frame_buffer.maxlen)
         # sanity check
         assert buffer_size < 5000
-        self._av_frame_buffer = Deque[VideoFrame](maxlen=buffer_size)
+        self._av_frame_buffer = deque[VideoFrame](maxlen=buffer_size)
         return info
 
     @cached_property
@@ -269,9 +255,7 @@ class Reader(Sequence[VideoFrame]):
                     self.logger.debug(f"returning buffered frame: {result[0]}")
                 return result[0]
             if self.logger:
-                self.logger.debug(
-                    f"returning {len(result)} buffered frames: {result[0]}...{result[-1]}"
-                )
+                self.logger.debug(f"returning {len(result)} buffered frames: {result[0]}...{result[-1]}")
             return result
 
         # if range requested, return a lazy list of the video frames
@@ -326,11 +310,7 @@ class Reader(Sequence[VideoFrame]):
 
     @property
     def timestamps(self) -> TimestampsArray:
-        return (
-            self._timestamps
-            if self._timestamps is not None
-            else self.video_packets_info.times
-        )
+        return self._timestamps if self._timestamps is not None else self.video_packets_info.times
 
     @cached_property
     def by_idx(

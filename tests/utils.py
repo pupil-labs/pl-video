@@ -1,14 +1,13 @@
 import time
-from typing import Generator, Iterable, TypeVar
+from collections.abc import Generator, Iterable
+from typing import TypeVar
 
 import tqdm
 
 T = TypeVar("T")
 
 
-def measure_fps(
-    generator: Iterable[T], total: int | None = None
-) -> Generator[T, None, None]:
+def measure_fps(generator: Iterable[T], total: int | None = None) -> Generator[T, None, None]:
     n_frames = 0
     start = time.time()
     for item in tqdm.tqdm(generator, unit=" frame", total=total):
