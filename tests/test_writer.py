@@ -3,8 +3,7 @@ from pathlib import Path
 import numpy as np
 
 from pupil_labs.video import Reader, Writer
-
-from .utils import measure_fps
+from pupil_labs.video.utils import measure_fps
 
 
 def test_write_ndarray(tmp_path: Path) -> None:

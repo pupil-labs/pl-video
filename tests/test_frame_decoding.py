@@ -2,10 +2,9 @@ from pathlib import Path
 
 import pytest
 
-from pupil_labs.video import PixelFormat
 from pupil_labs.video.reader import Reader
-
-from .utils import measure_fps
+from pupil_labs.video.utils import measure_fps
+from pupil_labs.video.video_frame import PixelFormat
 
 
 @pytest.mark.parametrize(
