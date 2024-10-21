@@ -22,8 +22,9 @@ def test_losslessness(tmp_path: Path) -> None:
             img = np.random.randint(0, 255, (3, height, width), dtype=np.uint8)
             written_images.append(img)
 
-            # Note: the encoding is only truely lossless if yuv444p data is used exclusively
-            # When converting yuv444p to e.g. rgb24, numeric precision is lost and results are slightly off.
+            # Note: the encoding is only truely lossless if yuv444p data is used.
+            # When converting yuv444p to e.g. rgb24, numeric precision is lost and
+            # results are slightly off.
             writer.write(img, pix_fmt="yuv444p")
 
     with Reader(tmp_path / "out.mp4") as reader:

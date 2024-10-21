@@ -22,7 +22,13 @@ class PacketData:
 
     def __repr__(self) -> str:
         def summarize_list(lst: list):
-            return f"[{', '.join(x if isinstance(x, str) else str(round(x, 4)) for x in lst[:3] + ['...'] + lst[-3:])}]"
+            summary = {
+                ", ".join(
+                    x if isinstance(x, str) else str(round(x, 4))
+                    for x in lst[:3] + ["..."] + lst[-3:]
+                )
+            }
+            return f"[{summary}]"
 
         return (
             f"{self.__class__.__name__}("

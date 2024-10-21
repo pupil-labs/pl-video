@@ -44,29 +44,21 @@ class VideoFrame:
 
     @property
     def gray(self) -> npt.NDArray[np.uint8]:
-        """
-        Numpy image array in gray format
-        """
+        """Numpy image array in gray format"""
         return self.to_ndarray("gray")
 
     @property
     def bgr(self) -> npt.NDArray[np.uint8]:
-        """
-        Numpy image array in BGR format
-        """
+        """Numpy image array in BGR format"""
         return self.to_ndarray("bgr24")
 
     @property
     def rgb(self) -> npt.NDArray[np.uint8]:
-        """
-        Numpy image array in RGB format
-        """
+        """Numpy image array in RGB format"""
         return self.to_ndarray("rgb24")
 
     def to_ndarray(self, pixel_format: PixelFormat) -> npt.NDArray[np.uint8]:
-        """
-        Returns an numpy array of the image for the frame
-        """
+        """Convert the image of the VideoFrame to a numpy array."""
         # TODO: add caching for decoded frames?
         return av_frame_to_ndarray_fast(self.av_frame, pixel_format)
 
@@ -74,9 +66,9 @@ class VideoFrame:
 def av_frame_to_ndarray_fast(
     av_frame: av.VideoFrame, pixel_format: PixelFormat | None
 ) -> npt.NDArray[np.uint8]:
-    """
-    Returns an image pixel numpy array for an av.VideoFrame in `format`
-    skipping conversion by using buffers directly if possible for performance
+    """Convert an av.VideoFrame to a numpy array in `format`.
+
+    Skipping conversion by using buffers directly if possible for performance.
     """
     if pixel_format == "gray":
         if av_frame.format.name == "gray":
@@ -97,8 +89,9 @@ def av_frame_to_ndarray_fast(
 
             if av_frame.format.name == "yuv420p":
                 warnings.warn(
-                    "using Y plane for yuv420p gray images, range is 16-235 instead of 0-255."
-                    " Use .av_frame.to_ndarray(format='gray') for full range (4x slower)",
+                    "using Y plane for yuv420p gray images, range is 16-235 instead "
+                    "of 0-255. Use .av_frame.to_ndarray(format='gray') for full range "
+                    "(4x slower)",
                     stacklevel=2,
                 )
                 # av.to_ndarray(format='gray') returns 0-255 for gray values
