@@ -5,7 +5,7 @@ from functools import cached_property
 from logging import Logger, getLogger
 from pathlib import Path
 from types import TracebackType
-from typing import Any, cast, overload
+from typing import cast, overload
 
 import av.container
 import av.error
@@ -202,8 +202,8 @@ class Reader(Sequence[VideoFrame]):
             try:
                 frames = cast(Iterator[av.video.frame.VideoFrame], packet.decode())
             except av.error.EOFError as e:
-                # if self.logger:
-                #     self.logger.warning("reached end of file")
+                if self.logger:
+                    self.logger.warning(f"reached end of file: {e}")
                 break
 
             self._frame_buffer.extend(frames)
