@@ -40,7 +40,6 @@ dev-dependencies = [
     "tox-uv>=1.11.3",
     "pytest-cov>=4.0.0",
     # docs
-    "black>=24.4",
     "markdown-callouts>=0.4",
     "markdown-exec>=1.8",
     "mkdocs>=1.6",
@@ -72,60 +71,6 @@ show_error_codes = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-
-[tool.ruff]
-target-version = "py39"
-line-length = 120
-fix = true
-
-[tool.ruff.lint]
-select = [
-    # flake8-2020
-    "YTT",
-    # flake8-bandit
-    "S",
-    # flake8-bugbear
-    "B",
-    # flake8-builtins
-    "A",
-    # flake8-comprehensions
-    "C4",
-    # flake8-debugger
-    "T10",
-    # flake8-simplify
-    "SIM",
-    # isort
-    "I",
-    # mccabe
-    "C90",
-    # pycodestyle
-    "E", "W",
-    # pyflakes
-    "F",
-    # pygrep-hooks
-    "PGH",
-    # pyupgrade
-    "UP",
-    # ruff
-    "RUF",
-    # tryceratops
-    "TRY",
-]
-ignore = [
-    # LineTooLong
-    "E501",
-    # DoNotAssignLambda
-    "E731",
-    # raise-vanilla-args
-    "TRY003",
-    # blanket-type-ignore
-    "PGH003",
-    # assert
-    "S101",
-]
-
-[tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101"]
 
 [tool.coverage.report]
 skip_empty = true
