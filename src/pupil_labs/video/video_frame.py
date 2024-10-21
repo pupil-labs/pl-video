@@ -16,13 +16,25 @@ class VideoFrame:
     index: int
     ts: int | float
 
+    stream_type = "video"
+
     def __getattr__(self, key: str) -> Any:
         return getattr(self.av_frame, key)
 
     def __repr__(self) -> str:
         return (
             f"{self.__class__.__name__}("
-            + ", ".join(f"{key}={getattr(self, key, '?')}" for key in "av_frame index time ts".split())
+            + ", ".join(
+                f"{key}={value}"
+                for key, value in [
+                    ("pts", self.pts),
+                    ("index", self.index),
+                    ("time", f"{self.time:.5f}"),
+                    ("format", f"{self.av_frame.format.name}"),
+                    ("res", f"{self.av_frame.width}x{self.av_frame.height}"),
+                    ("ts", f"{self.ts}"),
+                ]
+            )
             + ")"
         )
 

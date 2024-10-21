@@ -2,31 +2,33 @@ from collections.abc import Sequence
 from typing import Generic, TypeVar, overload
 
 import numpy as np
+import numpy.typing as npt
 
-from ._types import TimestampsArray
+IndexerValue = TypeVar("IndexerValueType")
+IndexerKey = np.int64 | np.float64 | int | float
+IndexerKeys = npt.NDArray[np.float64 | np.int64] | list[int | float]
 
-IndexerValueType = TypeVar("IndexerValueType")
-IndexerKeyType = int | float
 
-
-class Indexer(Generic[IndexerValueType]):
+class Indexer(Generic[IndexerValue]):
     def __init__(
         self,
-        keys: TimestampsArray,
-        values: Sequence[IndexerValueType],
+        keys: IndexerKeys,
+        values: Sequence[IndexerValue],
     ):
         self.values = values
         self.keys = np.array(keys)
 
     @overload
-    def __getitem__(self, key: IndexerKeyType) -> IndexerValueType: ...
+    def __getitem__(self, key: IndexerKey) -> IndexerValue: ...
 
     @overload
-    def __getitem__(self, key: slice) -> list[IndexerValueType]: ...
+    def __getitem__(self, key: slice) -> list[IndexerValue]: ...
 
-    def __getitem__(self, key: IndexerKeyType | slice) -> IndexerValueType | Sequence[IndexerValueType]:
+    def __getitem__(
+        self, key: IndexerKey | slice
+    ) -> IndexerValue | Sequence[IndexerValue]:
         if isinstance(key, int | float):
-            index = np.searchsorted(self.keys, [key])
+            index = np.searchsorted(self.keys, [key])[0]
             if self.keys[index] != key:
                 raise IndexError()
             return self.values[int(index)]
