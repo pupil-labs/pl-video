@@ -59,5 +59,8 @@ jobs:
       - name: Set up the environment
         uses: ./.github/actions/setup-python-env
 
+      - name: Run tests
+        run: uv run python -m pytest tests --cov --cov-config=pyproject.toml --cov-report=html
+
       - name: Check if documentation can be built
         run: uv run mkdocs build -s
