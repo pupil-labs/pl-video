@@ -3,8 +3,9 @@ from pathlib import Path
 import pytest
 
 from pupil_labs.video.reader import Reader
-from pupil_labs.video.utils import measure_fps
 from pupil_labs.video.video_frame import PixelFormat
+
+from .utils import measure_fps
 
 
 @pytest.mark.parametrize(
