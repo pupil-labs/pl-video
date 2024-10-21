@@ -53,6 +53,7 @@ dev-dependencies = [
     # YORE: EOL 3.10: Remove line.
     "tomli>=2.0; python_version < '3.11'",
     "tqdm>=4.66.5",
+    "types-tqdm>=4.66",
 ]
 
 [build-system]

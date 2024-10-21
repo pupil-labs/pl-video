@@ -72,12 +72,12 @@ def av_frame_to_ndarray_fast(
     """
     if pixel_format == "gray":
         if av_frame.format.name == "gray":
-            result = np.frombuffer(av_frame.planes[0], np.uint8).reshape(
-                av_frame.height, av_frame.width
-            )
+            result = np.frombuffer(
+                cast(memoryview, av_frame.planes[0]), np.uint8
+            ).reshape(av_frame.height, av_frame.width)
         elif av_frame.format.name.startswith("yuv"):
             plane = av_frame.planes[0]
-            plane_data = np.frombuffer(plane, np.uint8)
+            plane_data = np.frombuffer(cast(memoryview, plane), np.uint8)
             if av_frame.height * av_frame.width == len(plane_data):
                 gray = plane_data
                 gray.shape = plane.height, plane.width
@@ -106,7 +106,7 @@ def av_frame_to_ndarray_fast(
 
         # TODO(dan): find out why np.frombuffer(plane) didn't work here
         # for bgr, frombuffer is faster than array
-        image = np.array(plane)
+        image = np.array(plane, dtype=np.uint8)
 
         if 3 * av_frame.height * av_frame.width != len(image):
             image = image.reshape(-1, plane.line_size)
@@ -114,11 +114,10 @@ def av_frame_to_ndarray_fast(
             # image = np.ascontiguousarray(image)
             image = image.reshape(av_frame.height, av_frame.width, 3)
         else:
-            image = np.frombuffer(av_frame.planes[0], np.uint8).reshape(
-                av_frame.height, av_frame.width, 3
-            )
+            buf = np.frombuffer(cast(memoryview, av_frame.planes[0]), np.uint8)
+            image = buf.reshape(av_frame.height, av_frame.width, 3)
         result = image
     else:
-        result = av_frame.to_ndarray(format=pixel_format)
+        result = cast(npt.NDArray[np.uint8], av_frame.to_ndarray(format=pixel_format))
 
-    return cast(npt.NDArray[np.uint8], result)
+    return result

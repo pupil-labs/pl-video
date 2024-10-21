@@ -4,7 +4,7 @@ from typing import Generic, TypeVar, overload
 import numpy as np
 import numpy.typing as npt
 
-IndexerValue = TypeVar("IndexerValueType")
+IndexerValue = TypeVar("IndexerValue")
 IndexerKey = np.int64 | np.float64 | int | float
 IndexerKeys = npt.NDArray[np.float64 | np.int64] | list[int | float]
 

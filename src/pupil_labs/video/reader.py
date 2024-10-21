@@ -197,7 +197,8 @@ class Reader(Sequence[VideoFrame]):
     def decoder(self) -> Iterator[av.video.frame.VideoFrame]:
         while self._frame_buffer:
             frame = self._frame_buffer.popleft()
-            self.logger.debug(f"decoded overage {frame}")
+            if self.logger:
+                self.logger.debug(f"decoded overage {frame}")
             yield frame
 
         for packet in self.demuxer:
@@ -245,7 +246,7 @@ class Reader(Sequence[VideoFrame]):
 
         return start_index, stop_index
 
-    def get_frames(self, key: int | slice) -> list[VideoFrame] | list[VideoFrame]:  # noqa: C901
+    def get_frames(self, key: int | slice) -> Sequence[VideoFrame]:  # noqa: C901
         start_index, stop_index = self._parse_key(key)
         if self.logger:
             self.logger.info(f"get_frames: [{start_index}:{stop_index}]")
@@ -298,6 +299,7 @@ class Reader(Sequence[VideoFrame]):
         else:
             if self.decoder_index is not None:
                 distance = distance = start_index - self.decoder_index - 1
+                assert self.buffer.maxlen
                 if 0 < distance < self.buffer.maxlen:
                     wanted_distance = distance
             if wanted_distance is None:
@@ -348,9 +350,9 @@ class Reader(Sequence[VideoFrame]):
     @overload
     def __getitem__(self, key: int) -> VideoFrame: ...
     @overload
-    def __getitem__(self, key: slice) -> list[VideoFrame]: ...
+    def __getitem__(self, key: slice) -> Sequence[VideoFrame]: ...
 
-    def __getitem__(self, key: int | slice) -> VideoFrame | list[VideoFrame]:
+    def __getitem__(self, key: int | slice) -> VideoFrame | Sequence[VideoFrame]:
         frames = self.get_frames(key)
         if isinstance(key, int):
             if not frames:

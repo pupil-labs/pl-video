@@ -20,25 +20,26 @@ class PacketData:
     def gop_size(self) -> int:
         return int(max(np.diff(self.keyframe_indices)))
 
-    def __repr__(self) -> str:
-        def summarize_list(lst: list):
-            summary = {
+    def _summarize_list(self, lst: list) -> str:
+        return f"""[{
+            (
                 ", ".join(
                     x if isinstance(x, str) else str(round(x, 4))
                     for x in lst[:3] + ["..."] + lst[-3:]
                 )
-            }
-            return f"[{summary}]"
+            )
+        }]"""
 
+    def __repr__(self) -> str:
         return (
             f"{self.__class__.__name__}("
             + ", ".join(
                 f"{key}={value}"
                 for key, value in [
                     ("len", len(self.pts)),
-                    ("pts", summarize_list(self.pts)),
-                    ("times", summarize_list(self.times)),
-                    ("keyframe_indices", summarize_list(self.keyframe_indices)),
+                    ("pts", self._summarize_list(self.pts)),
+                    ("times", self._summarize_list(self.times)),
+                    ("keyframe_indices", self._summarize_list(self.keyframe_indices)),
                 ]
             )
             + ")"
@@ -72,7 +73,7 @@ def reader(video_path: Path) -> Reader:
 
 @pytest.fixture
 def reader_with_ts(video_path: Path, correct_data: PacketData) -> Reader:
-    timestamps = [i / 10.0 for i in range(len(correct_data.pts))]
+    timestamps = np.array([i / 10.0 for i in range(len(correct_data.pts))])
     return Reader(video_path, timestamps)
 
 
@@ -346,7 +347,7 @@ def test_by_ts_without_passed_in_timestamps(
         if time > 1:
             first_after_1s = time
             break
-    assert reader.by_times[1.0:5.0][0].ts == first_after_1s
+    assert reader.by_times[1.0:5.0][0].ts == first_after_1s  # type: ignore
 
 
 def test_by_ts_with_passed_in_timestamps(reader_with_ts: Reader) -> None:
