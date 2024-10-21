@@ -5,7 +5,6 @@ repo_url: "https://github.com/pupil-labs/pl-video"
 repo_name: "pupil-labs/pl-video"
 site_dir: "site"
 watch: [mkdocs.yml, README.md, CONTRIBUTING.md, src/pupil_labs/video]
-copyright: Copyright &copy;
 edit_uri: edit/main/docs/
 
 validation:
@@ -27,11 +26,7 @@ theme:
   features:
     - announce.dismiss
     - content.action.edit
-    - content.action.view
-    - content.code.annotate
     - content.code.copy
-    - content.tooltips
-    - navigation.footer
     - navigation.indexes
     - navigation.sections
     - navigation.tabs
@@ -64,9 +59,6 @@ extra_css:
   - css/material.css
   - css/mkdocstrings.css
 
-extra_javascript:
-  - js/feedback.js
-
 markdown_extensions:
   - attr_list
   - admonition
@@ -93,8 +85,6 @@ markdown_extensions:
 plugins:
   - search
   - markdown-exec
-  - literate-nav:
-      nav_file: SUMMARY.md
   - coverage
   - mkdocstrings:
       handlers:
@@ -134,19 +124,5 @@ extra:
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/pupil-labs
-    - icon: fontawesome/brands/gitter
-      link: https://gitter.im/pl-video/community
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/pupil_labs_video/
-  analytics:
-    feedback:
-      title: Was this page helpful?
-      ratings:
-        - icon: material/emoticon-happy-outline
-          name: This page was helpful
-          data: 1
-          note: Thanks for your feedback!
-        - icon: material/emoticon-sad-outline
-          name: This page could be improved
-          data: 0
-          note: Let us know how we can improve this page.
