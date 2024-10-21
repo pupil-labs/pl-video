@@ -1,8 +1,9 @@
-import pathlib
-import av
+from pathlib import Path
+
 import pytest
 
-from pupil_labs.video_simple.reader import Reader
+from pupil_labs.video import PixelFormat
+from pupil_labs.video.reader import Reader
 
 from .utils import measure_fps
 
@@ -16,16 +17,13 @@ from .utils import measure_fps
         "bgr24",
     ],
 )
-def test_decode(
-    video_path: pathlib.Path,
-    pixel_format,
-):
+def test_decode(video_path: Path, pixel_format: PixelFormat) -> None:
     reader = Reader(video_path)
     for frame in measure_fps(reader):
         frame.to_ndarray(pixel_format=pixel_format)
 
 
-def test_decoded_frame_correctness(main_video_path):
+def test_decoded_frame_correctness(main_video_path: Path) -> None:
     reader = Reader(main_video_path)
 
     frame0 = reader.by_idx[0]

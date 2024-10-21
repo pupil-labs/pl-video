@@ -1,10 +1,13 @@
 from dataclasses import dataclass
 from pathlib import Path
+from types import TracebackType
 from typing import Optional
+
 import av
 import numpy as np
 import numpy.typing as npt
-from pupil_labs.video_simple.video_frame import PixelFormat
+
+from pupil_labs.video.video_frame import PixelFormat
 
 
 @dataclass
@@ -21,7 +24,7 @@ class Writer:
 
         if self.lossless:
             self.video_stream.pix_fmt = "yuv444p"
-            self.video_stream.options = {
+            self.video_stream.options = {  # type: ignore
                 "qp": "0",
                 "preset:v": "p7",
                 "tune:v": "lossless",
@@ -33,7 +36,7 @@ class Writer:
         time: Optional[float] = None,
         pix_fmt: Optional[PixelFormat] = None,
     ) -> None:
-        if self.video_stream.encoded_frame_count == 0:
+        if self.video_stream.encoded_frame_count == 0:  # type: ignore
             if image.ndim == 2:
                 height, width = image.shape
             elif image.ndim == 3:
@@ -59,12 +62,17 @@ class Writer:
         packet = self.video_stream.encode(frame)
         self.container.mux(packet)
 
-    def __enter__(self):
+    def __enter__(self) -> "Writer":
         return self
 
-    def __exit__(self, *args):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
         self.close()
 
-    def close(self):
+    def close(self) -> None:
         self.container.mux(self.video_stream.encode(None))
         self.container.close()

@@ -1,78 +1,138 @@
-[build-system]
-requires = ["setuptools>=61.2", "setuptools_scm[toml]>=3.4.1"]
-build-backend = "setuptools.build_meta"
-
 [project]
-name = "pupil_labs_video_simple"
-authors = [
-	{ name = "Jason R. Coombs", email = "jaraco@jaraco.com" },
-]
-description = "PROJECT_DESCRIPTION"
-readme = "README.rst"
-classifiers = [
-	"Development Status :: 5 - Production/Stable",
-	"Intended Audience :: Developers",
-	"License :: OSI Approved :: MIT License",
-	"Programming Language :: Python :: 3",
-	"Programming Language :: Python :: 3 :: Only",
-]
-requires-python = ">=3.8"
-dependencies = [
-	"av",
-	"importlib-metadata;python_version<'3.8'",
-    "numpy",
-    "pillow",
-    "pyturbojpeg",
-    "intervaltree",
-    "python-ranges",
-]
+name = "pupil_labs_video"
+description = "A high-level wrapper of PyAV providing an easy to use interface to video data."
+authors = [{name = "Pupil Labs", email = "info@pupil-labs.com"}]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.9, <4.0"
+keywords = []
 dynamic = ["version"]
+classifiers = [
+    "Intended Audience :: Developers",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+dependencies = [
+    "numpy>=2.0.2",
+    "av>=13.1.0",
+]
 
 [project.urls]
-Source = "https://github.com/PROJECT_PATH"
+Homepage = "https://pupil-labs.github.io/pl-video"
+Documentation = "https://pupil-labs.github.io/pl-video"
+Repository = "https://github.com/pupil-labs/pl-video"
+Issues = "https://github.com/pupil-labs/pl-video/issues"
 
-[project.optional-dependencies]
-test = [
-	# upstream
-	"pytest >= 6, != 8.1.*",
 
-	# local
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.2",
+    "pre-commit>=2.20.0",
+    "mypy>=0.991",
+    "deptry>=0.20.0",
+    "tox-uv>=1.11.3",
+    "pytest-cov>=4.0.0",
+    # docs
+    "black>=24.4",
+    "markdown-callouts>=0.4",
+    "markdown-exec>=1.8",
+    "mkdocs>=1.6",
+    "mkdocs-coverage>=1.0",
+    "mkdocs-gen-files>=0.5",
+    "mkdocs-git-revision-date-localized-plugin>=1.2",
+    "mkdocs-literate-nav>=0.6",
+    "mkdocs-material>=9.5",
+    "mkdocs-minify-plugin>=0.8",
+    "mkdocstrings[python]>=0.25",
+    # YORE: EOL 3.10: Remove line.
+    "tomli>=2.0; python_version < '3.11'",
+    "tqdm>=4.66.5",
 ]
 
-doc = [
-	# upstream
-	"sphinx >= 3.5",
-	"jaraco.packaging >= 9.3",
-	"rst.linker >= 1.9",
-	"furo",
-	"sphinx-lint",
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
 
-	# local
+[tool.mypy]
+packages = ["pupil_labs.video"]
+disallow_untyped_defs = true
+disallow_any_unimported = true
+no_implicit_optional = true
+check_untyped_defs = true
+warn_return_any = true
+warn_unused_ignores = true
+show_error_codes = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py39"
+line-length = 120
+fix = true
+
+[tool.ruff.lint]
+select = [
+    # flake8-2020
+    "YTT",
+    # flake8-bandit
+    "S",
+    # flake8-bugbear
+    "B",
+    # flake8-builtins
+    "A",
+    # flake8-comprehensions
+    "C4",
+    # flake8-debugger
+    "T10",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+    # mccabe
+    "C90",
+    # pycodestyle
+    "E", "W",
+    # pyflakes
+    "F",
+    # pygrep-hooks
+    "PGH",
+    # pyupgrade
+    "UP",
+    # ruff
+    "RUF",
+    # tryceratops
+    "TRY",
+]
+ignore = [
+    # LineTooLong
+    "E501",
+    # DoNotAssignLambda
+    "E731",
+    # raise-vanilla-args
+    "TRY003",
+    # blanket-type-ignore
+    "PGH003",
+    # assert
+    "S101",
 ]
 
-check = [
-	"pytest-checkdocs >= 2.4",
-	"pytest-ruff >= 0.2.1; sys_platform != 'cygwin'",
-]
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]
 
-cover = [
-	"pytest-cov",
-]
+[tool.coverage.report]
+skip_empty = true
 
-enabler = [
-	"pytest-enabler >= 2.2",
-]
+[tool.coverage.run]
+branch = true
+source = ["pupil_labs"]
 
-type = [
-	# upstream
-	"pytest-mypy",
-
-	# local
-]
-
-
-[tool.setuptools_scm]
-
-
-[tool.pytest-enabler.mypy]
-# Disabled due to jaraco/skeleton#143
+[tool.deptry.per_rule_ignores]
+DEP001 = ["pupil_labs"]
