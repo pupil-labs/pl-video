@@ -14,6 +14,7 @@ import av.video
 import numpy as np
 import numpy.typing as npt
 
+from pupil_labs.video.frameslice import FrameSlice
 from pupil_labs.video.indexer import Indexer
 from pupil_labs.video.video_frame import VideoFrame
 
@@ -57,6 +58,7 @@ class Reader(Sequence[VideoFrame]):
         self.decoder_index: int | None = -1
         self.stats = Stats()
         self.is_at_start = True
+        self.lazy_frame_slice_limit = 50
 
         # TODO(dan): this should be based on the stream precision
         # 1ms is ok for video but perhaps not for audio later
@@ -270,6 +272,12 @@ class Reader(Sequence[VideoFrame]):
                     self.logger.debug("no buffered frames found")
 
             start_index = start_index + len(result)
+
+        if isinstance(key, slice):
+            # return a lazy list of the video frames
+            if stop_index - start_index < self.lazy_frame_slice_limit:
+                return list(FrameSlice[VideoFrame](self, key))
+            return FrameSlice[VideoFrame](self, key)
 
         # seeking logic
         wanted_distance = None

@@ -253,29 +253,30 @@ slice(None, 300, None)
 #     assert count == num_expected_frames
 
 
-# def test_consuming_lazy_frame_slice(reader: Reader) -> None:
-#     assert reader.gop_size > 30
-#     start = reader.gop_size + 10
-#     stop = start + reader.gop_size + 10
-#     assert stop - start > 30
-#     reader.lazy_frame_slice_limit = 30
+def test_consuming_lazy_frame_slice(reader: Reader, correct_data: PacketData) -> None:
+    assert reader.gop_size > 30
+    start = reader.gop_size + 10
+    stop = start + reader.gop_size + 10
+    assert stop - start > 30
+    reader.lazy_frame_slice_limit = 30
 
-#     num_wanted_frames = stop - start
-#     frames = reader.by_idx[start:stop]
-#     assert len(frames) == stop - start
-#     assert reader.stats.seeks == 0
+    num_wanted_frames = stop - start
+    frames = reader.by_idx[start:stop]
+    assert len(frames) == stop - start
+    assert reader.stats.seeks == 0
 
-#     # cosuming the slice will require a seek, but the rest of the slice will not
-#     count = 0
-#     for frame in frames:
-#         count += 1
+    # cosuming the slice will require a seek, but the rest of the slice will not
+    count = 0
+    for frame in frames:
+        assert frame.pts == correct_data.pts[start + count]
+        count += 1
 
-#     assert count == num_wanted_frames
-#     assert reader.stats.seeks == 1
+    assert count == num_wanted_frames
+    assert reader.stats.seeks == 1
 
-#     # the slice started 10 frames after a keyframe, so we expect to decode the frames
-#     # after the keyframe as well as the ones in the slice range
-#     assert reader.stats.decodes == num_wanted_frames + 10
+    # the slice started 10 frames after a keyframe, so we expect to decode the frames
+    # after the keyframe as well as the ones in the slice range
+    assert reader.stats.decodes == num_wanted_frames + 10
 
 
 def test_arbitrary_index(reader: Reader, correct_data: PacketData) -> None:
