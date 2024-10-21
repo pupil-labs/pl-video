@@ -253,6 +253,22 @@ slice(None, 300, None)
 #     assert count == num_expected_frames
 
 
+@pytest.mark.parametrize(
+    "slice_arg",
+    [
+        Slice[:],
+        Slice[:100],
+        Slice[:-100],
+        Slice[-100:],
+        Slice[-100:],
+        Slice[-100:-50],
+        Slice[50:100],
+    ],
+)
+def test_slices(reader: Reader, slice_arg: slice, correct_data: PacketData) -> None:
+    assert [f.pts for f in reader[slice_arg]] == correct_data.pts[slice_arg]
+
+
 def test_consuming_lazy_frame_slice(reader: Reader, correct_data: PacketData) -> None:
     assert reader.gop_size > 30
     start = reader.gop_size + 10

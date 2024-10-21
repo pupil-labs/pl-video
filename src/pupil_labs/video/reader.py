@@ -223,18 +223,30 @@ class Reader(Sequence[VideoFrame]):
             self.stats.decodes += 1
             yield frame
 
-    def get_frames(self, key: int | slice) -> list[VideoFrame] | list[VideoFrame]:  # noqa: C901
-        # start / stop index logic
+    def _parse_key(self, key: int | slice) -> tuple[int, int]:
         if isinstance(key, slice):
             start_index, stop_index = key.start, key.stop
         elif isinstance(key, int):
             start_index, stop_index = key, key + 1
             if key < 0:
-                start_index = self.stream.frames + key
+                start_index = len(self) + key
                 stop_index = start_index + 1
         else:
             raise TypeError(f"key must be int or slice, not {type(key)}")
 
+        if start_index is None:
+            start_index = 0
+        if start_index < 0:
+            start_index = len(self) + start_index
+        if stop_index is None:
+            stop_index = len(self)
+        if stop_index < 0:
+            stop_index = len(self) + stop_index
+
+        return start_index, stop_index
+
+    def get_frames(self, key: int | slice) -> list[VideoFrame] | list[VideoFrame]:  # noqa: C901
+        start_index, stop_index = self._parse_key(key)
         if self.logger:
             self.logger.info(f"get_frames: [{start_index}:{stop_index}]")
 
