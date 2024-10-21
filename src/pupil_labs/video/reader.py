@@ -5,7 +5,7 @@ from functools import cached_property
 from logging import getLogger
 from pathlib import Path
 from types import TracebackType
-from typing import Generic, cast, overload
+from typing import cast, overload
 
 import av
 import av.audio.stream
@@ -17,7 +17,8 @@ import av.subtitles.subtitle
 import av.video.stream
 import numpy as np
 
-from pupil_labs.video._types import FrameType, PTSArray, TimesArray, TimestampsArray
+from pupil_labs.video._types import PTSArray, TimesArray, TimestampsArray
+from pupil_labs.video.frameslice import FrameSlice
 from pupil_labs.video.indexer import Indexer
 from pupil_labs.video.video_frame import VideoFrame
 
@@ -58,44 +59,6 @@ class AVStreamPacketsInfo:
         if len(self.keyframe_indices) < 2:
             return 0
         return int(max(np.diff(self.keyframe_indices)))
-
-
-class FrameSlice(Generic[FrameType], Sequence[FrameType]):
-    def __init__(self, target: Sequence[FrameType], slice_value: slice):
-        self.target = target
-        self.slice = slice_value
-        self.start, self.stop, self.step = slice_value.indices(len(self.target))
-
-    @overload
-    def __getitem__(self, key: int) -> FrameType: ...
-
-    @overload
-    def __getitem__(self, key: slice) -> Sequence[FrameType]: ...
-
-    def __getitem__(self, key: int | slice) -> FrameType | Sequence[FrameType]:
-        if isinstance(key, int):
-            if key > len(self) - 1:
-                raise IndexError()
-            return self.target[key + self.start]
-        elif isinstance(key, slice):
-            # TODO(dan): implement FrameSlice(self, new_slice)
-            raise NotImplementedError()
-        else:
-            raise TypeError
-
-    def __len__(self) -> int:
-        return self.stop - self.start
-
-    def __repr__(self) -> str:
-        return (
-            f"{self.__class__.__name__}("
-            f'{self.target})'
-            '['
-            f"{'' if self.slice.start is None else self.slice.start}"
-            ':'
-            f"{'' if self.slice.stop is None else self.slice.stop}"
-            "]"
-        )
 
 
 class Reader(Sequence[VideoFrame]):
