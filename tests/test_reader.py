@@ -7,7 +7,8 @@ import numpy as np
 import pytest
 
 from pupil_labs.video.reader import Reader
-from pupil_labs.video.utils import measure_fps
+
+from .utils import measure_fps
 
 
 @dataclass
