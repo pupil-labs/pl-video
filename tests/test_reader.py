@@ -51,7 +51,7 @@ def correct_data(video_path: Path) -> PacketData:
     pts = []
     times = []
     keyframe_indices = []
-    container = av.open(str(video_path))  # type:ignore
+    container = av.open(str(video_path))
     stream = container.streams.video[0]
     assert stream.time_base
     index = 0
