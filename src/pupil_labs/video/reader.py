@@ -5,12 +5,7 @@ from functools import cached_property
 from logging import getLogger
 from pathlib import Path
 from types import TracebackType
-from typing import (
-    Generic,
-    TypeVar,
-    cast,
-    overload,
-)
+from typing import Generic, cast, overload
 
 import av
 import av.audio.stream
@@ -21,16 +16,10 @@ import av.subtitles
 import av.subtitles.subtitle
 import av.video.stream
 import numpy as np
-import numpy.typing as npt
 
+from pupil_labs.video._types import FrameType, PTSArray, TimesArray, TimestampsArray
+from pupil_labs.video.indexer import Indexer
 from pupil_labs.video.video_frame import VideoFrame
-
-AVFrameTypes = av.video.frame.VideoFrame | av.audio.frame.AudioFrame | av.subtitles.subtitle.SubtitleSet
-
-FrameType = TypeVar("FrameType")
-PTSArray = npt.NDArray[np.int64]
-TimesArray = npt.NDArray[np.float64]
-TimestampsArray = npt.NDArray[np.float64 | np.int64] | list[int | float]
 
 
 @dataclass
@@ -69,38 +58,6 @@ class AVStreamPacketsInfo:
         if len(self.keyframe_indices) < 2:
             return 0
         return int(max(np.diff(self.keyframe_indices)))
-
-
-IndexerValueType = TypeVar("IndexerValueType")
-IndexerKeyType = int | float
-
-
-class Indexer(Generic[IndexerValueType]):
-    def __init__(
-        self,
-        keys: TimestampsArray,
-        values: Sequence[IndexerValueType],
-    ):
-        self.values = values
-        self.keys = np.array(keys)
-
-    @overload
-    def __getitem__(self, key: IndexerKeyType) -> IndexerValueType: ...
-
-    @overload
-    def __getitem__(self, key: slice) -> list[IndexerValueType]: ...
-
-    def __getitem__(self, key: IndexerKeyType | slice) -> IndexerValueType | Sequence[IndexerValueType]:
-        if isinstance(key, int | float):
-            index = np.searchsorted(self.keys, [key])
-            if self.keys[index] != key:
-                raise IndexError()
-            return self.values[int(index)]
-        elif isinstance(key, slice):
-            start_index, stop_index = np.searchsorted(self.keys, [key.start, key.stop])
-            return self.values[start_index:stop_index]
-        else:
-            raise TypeError(f"key must be int or slice, not {type(key)}")
 
 
 class FrameSlice(Generic[FrameType], Sequence[FrameType]):
