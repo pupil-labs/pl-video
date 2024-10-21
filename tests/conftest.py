@@ -1,5 +1,5 @@
-from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -8,11 +8,11 @@ TEST_DATA_PATH = ROOT_PATH / "tests" / "data"
 
 
 @pytest.fixture
-def test_data_path():
+def test_data_path() -> Path:
     return TEST_DATA_PATH
 
 
-def pytest_generate_tests(metafunc):
+def pytest_generate_tests(metafunc: Any) -> None:
     # video_paths = metafunc.config.getoption("video_path")
 
     # main_video = TEST_DATA_PATH / "old/world.mp4"
@@ -46,7 +46,7 @@ def pytest_generate_tests(metafunc):
         TEST_DATA_PATH / "PI Scene Camera - audio off.mp4",
     ]
 
-    standard_videos = [main_video] + videos_with_audio + videos_other
+    standard_videos = [main_video, *videos_with_audio, *videos_other]
     if "num_frames" in metafunc.fixturenames:
         assert "video_path" in metafunc.fixturenames
 
@@ -57,7 +57,7 @@ def pytest_generate_tests(metafunc):
             TEST_DATA_PATH / "old/eye.mp4": 3868,
         }
 
-        videos = [video for video in standard_videos if video in num_frames_map.keys()]
+        videos = [video for video in standard_videos if video in num_frames_map]
         metafunc.parametrize(
             "video_path, num_frames",
             [(video, num_frames_map[video]) for video in videos],
