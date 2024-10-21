@@ -44,9 +44,22 @@ class Reader(Sequence[VideoFrame]):
         times: TimesArray | None = None,
         logger: Logger | None = DEFAULT_LOGGER,
     ):
+        """Reader reads video files providing a frame access api
+
+        Arguments:
+        ---------
+            source: Path to a video file, local or http://
+
+            times:  List of timestamps in video time seconds video frames, if provided
+                    will be used to avoid reading entire video to get them.
+
+                    Should be in video time seconds: eg. [0, 0.033, 0.066]
+
+            logger: a python logger to use, pass in None to increase performance
+
+        """
         self.source = source
         self.logger = logger
-
         # TODO(dan): this should not live here
         if times is None:
             time_file = Path(self.source).with_suffix(".time")
