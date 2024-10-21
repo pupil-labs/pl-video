@@ -71,14 +71,18 @@ class VideoFrame:
         return av_frame_to_ndarray_fast(self.av_frame, pixel_format)
 
 
-def av_frame_to_ndarray_fast(av_frame: av.VideoFrame, pixel_format: PixelFormat | None) -> npt.NDArray[np.uint8]:
+def av_frame_to_ndarray_fast(
+    av_frame: av.VideoFrame, pixel_format: PixelFormat | None
+) -> npt.NDArray[np.uint8]:
     """
     Returns an image pixel numpy array for an av.VideoFrame in `format`
     skipping conversion by using buffers directly if possible for performance
     """
     if pixel_format == "gray":
         if av_frame.format.name == "gray":
-            result = np.frombuffer(av_frame.planes[0], np.uint8).reshape(av_frame.height, av_frame.width)
+            result = np.frombuffer(av_frame.planes[0], np.uint8).reshape(
+                av_frame.height, av_frame.width
+            )
         elif av_frame.format.name.startswith("yuv"):
             plane = av_frame.planes[0]
             plane_data = np.frombuffer(plane, np.uint8)
@@ -117,7 +121,9 @@ def av_frame_to_ndarray_fast(av_frame: av.VideoFrame, pixel_format: PixelFormat 
             # image = np.ascontiguousarray(image)
             image = image.reshape(av_frame.height, av_frame.width, 3)
         else:
-            image = np.frombuffer(av_frame.planes[0], np.uint8).reshape(av_frame.height, av_frame.width, 3)
+            image = np.frombuffer(av_frame.planes[0], np.uint8).reshape(
+                av_frame.height, av_frame.width, 3
+            )
         result = image
     else:
         result = av_frame.to_ndarray(format=pixel_format)

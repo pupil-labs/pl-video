@@ -33,10 +33,10 @@ class FrameSlice(Generic[FrameType], Sequence[FrameType]):
     def __repr__(self) -> str:
         return (
             f"{self.__class__.__name__}("
-            f'{self.target})'
-            '['
+            f"{self.target})"
+            "["
             f"{'' if self.slice.start is None else self.slice.start}"
-            ':'
+            ":"
             f"{'' if self.slice.stop is None else self.slice.stop}"
             "]"
         )
