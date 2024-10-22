@@ -1,26 +1,20 @@
 from collections.abc import Sequence
 from pathlib import Path
 from types import TracebackType
-from typing import Optional, overload
+from typing import overload
 
 import numpy as np
 
-from .reader import Reader, TimesArray
+from .reader import Reader
 from .video_frame import VideoFrame
 
 
 class MultiPartReader(Sequence[VideoFrame]):
-    def __init__(
-        self, paths: list[str] | list[Path], times: Optional[list[TimesArray]] = None
-    ):
-        if times is not None and len(times) != len(paths):
-            raise ValueError("Number of times arrays must match number of video parts.")
+    def __init__(self, paths: list[str] | list[Path]):
+        if isinstance(paths, str):
+            raise TypeError("paths must be a list")
 
-        if times is None:
-            self.parts = [Reader(path) for path in paths]
-        else:
-            self.parts = [Reader(path, time) for path, time in zip(paths, times)]
-
+        self.parts = [Reader(path) for path in paths]
         self._start_indices = np.cumsum([0] + [len(part) for part in self.parts])
 
     def __len__(self) -> int:
