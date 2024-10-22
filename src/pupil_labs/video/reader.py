@@ -108,10 +108,6 @@ class Reader(Sequence[VideoFrame]):
             stream.thread_type = "FRAME"
         return container
 
-    @cached_property
-    def _buffer(self) -> deque[VideoFrame]:
-        return deque(maxlen=self.gop_size)
-
     def _seek(self, ts: float) -> None:
         want_start = ts == 0
         if want_start and self.is_at_start:
@@ -124,8 +120,8 @@ class Reader(Sequence[VideoFrame]):
         self._container.seek(seek_time)
         self.stats.seeks += 1
         self.decoder_index = -1 if want_start else None
-        self._buffer.clear()
-        self._frame_buffer.clear()
+        self._get_frames_buffer.clear()
+        self._decoder_frame_buffer.clear()
 
     @property
     def _stream(self) -> av.video.stream.VideoStream:
@@ -183,13 +179,13 @@ class Reader(Sequence[VideoFrame]):
             yield packet
 
     @cached_property
-    def _frame_buffer(self) -> deque[av.video.frame.VideoFrame]:
+    def _decoder_frame_buffer(self) -> deque[av.video.frame.VideoFrame]:
         return deque()
 
     @property
     def decoder(self) -> Iterator[av.video.frame.VideoFrame]:
-        while self._frame_buffer:
-            frame = self._frame_buffer.popleft()
+        while self._decoder_frame_buffer:
+            frame = self._decoder_frame_buffer.popleft()
             if self.logger:
                 self.logger.debug(f"decoded overage {frame}")
             yield frame
@@ -202,22 +198,22 @@ class Reader(Sequence[VideoFrame]):
                     self.logger.warning(f"reached end of file: {e}")
                 break
 
-            self._frame_buffer.extend(frames)
-            while self._frame_buffer:
-                frame = self._frame_buffer.popleft()
+            self._decoder_frame_buffer.extend(frames)
+            while self._decoder_frame_buffer:
+                frame = self._decoder_frame_buffer.popleft()
                 if self.logger:
                     self.logger.debug(f"decoding current {frame}")
                 self.stats.decodes += 1
                 yield frame
 
-        while self._frame_buffer:
-            frame = self._frame_buffer.popleft()
+        while self._decoder_frame_buffer:
+            frame = self._decoder_frame_buffer.popleft()
             if self.logger:
                 self.logger.debug(f"decoding after {frame}")
             self.stats.decodes += 1
             yield frame
 
-    def _parse_key(self, key: int | slice) -> tuple[int, int]:
+    def _calculate_absolute_indexes(self, key: int | slice) -> tuple[int, int]:
         if isinstance(key, slice):
             start_index, stop_index = key.start, key.stop
         elif isinstance(key, int):
@@ -239,25 +235,31 @@ class Reader(Sequence[VideoFrame]):
 
         return start_index, stop_index
 
+    @cached_property
+    def _get_frames_buffer(self) -> deque[VideoFrame]:
+        return deque(maxlen=self.gop_size)
+
     def _get_frames(self, key: int | slice) -> Sequence[VideoFrame]:  # noqa: C901
-        start_index, stop_index = self._parse_key(key)
+        start_index, stop_index = self._calculate_absolute_indexes(key)
         if self.logger:
             self.logger.info(f"get_frames: [{start_index}:{stop_index}]")
 
         result = list[VideoFrame]()
 
         # buffered frames logic
-        if self._buffer:
+        if self._get_frames_buffer:
             if self.logger:
-                self.logger.info(f"buffer: {_summarize_frames(self._buffer)}")
+                self.logger.info(
+                    f"buffer: {_summarize_frames(self._get_frames_buffer)}"
+                )
 
-            distance = start_index - self._buffer[0].index
+            distance = start_index - self._get_frames_buffer[0].index
             buffer_contains_wanted_frames = distance >= 0 and distance <= len(
-                self._buffer
+                self._get_frames_buffer
             )
             if buffer_contains_wanted_frames:
                 # TODO(dan): we can be faster here if we just use indices
-                for buffered_frame in self._buffer:
+                for buffered_frame in self._get_frames_buffer:
                     if start_index <= buffered_frame.index < stop_index:
                         result.append(buffered_frame)
 
@@ -289,12 +291,14 @@ class Reader(Sequence[VideoFrame]):
         wanted_distance = None
         wanted_start_time = None
         if self.decoder_index is not None and self.decoder_index + 1 == start_index:
-            wanted_start_time = 0 if not self._buffer else self._buffer[-1].time
+            wanted_start_time = (
+                0 if not self._get_frames_buffer else self._get_frames_buffer[-1].time
+            )
         else:
             if self.decoder_index is not None:
                 distance = distance = start_index - self.decoder_index - 1
-                assert self._buffer.maxlen
-                if 0 < distance < self._buffer.maxlen:
+                assert self._get_frames_buffer.maxlen
+                if 0 < distance < self._get_frames_buffer.maxlen:
                     wanted_distance = distance
             if wanted_distance is None:
                 wanted_start_time = self.times[start_index]
@@ -331,7 +335,7 @@ class Reader(Sequence[VideoFrame]):
             frame = VideoFrame(av_frame, self.decoder_index, av_frame.time)
             if self.logger:
                 self.logger.debug(f"  decoded {frame}")
-            self._buffer.append(frame)
+            self._get_frames_buffer.append(frame)
             add_frame = (
                 count > wanted_distance
                 if wanted_distance is not None
