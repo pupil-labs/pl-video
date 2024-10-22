@@ -84,10 +84,10 @@ class Reader(Sequence[VideoFrame]):
 
     @cached_property
     def gop_size(self) -> int:
-        self.container.seek(0)
+        self._container.seek(0)
         have_seen_keyframe_already = False
         count = 0
-        for packet in self.container.demux(self.stream):
+        for packet in self._container.demux(self._stream):
             if packet.pts is None:
                 continue
             if packet.is_keyframe:
@@ -98,7 +98,7 @@ class Reader(Sequence[VideoFrame]):
             if count > 1000:  # sanity check, eye videos usually have 400 frames per gop
                 raise RuntimeError("too many packets demuxed trying to find a keyframe")
 
-        self.container.seek(0)
+        self._container.seek(0)
         if self.logger:
             self.logger.info(f"demuxed {count} packets to get gop_size")
         return count
@@ -106,21 +106,21 @@ class Reader(Sequence[VideoFrame]):
     @property
     def times(self) -> TimesArray:
         if self._times is None:
-            self._times = self.times_from_container
+            self._times = self._times_from_container
         return self._times
 
     @cached_property
-    def container(self) -> av.container.input.InputContainer:
+    def _container(self) -> av.container.input.InputContainer:
         container = av.open(self.source)
         for stream in container.streams.video:
             stream.thread_type = "FRAME"
         return container
 
     @cached_property
-    def buffer(self) -> deque[VideoFrame]:
+    def _buffer(self) -> deque[VideoFrame]:
         return deque(maxlen=self.gop_size)
 
-    def seek(self, ts: float) -> None:
+    def _seek(self, ts: float) -> None:
         want_start = ts == 0
         if want_start and self.is_at_start:
             return
@@ -129,31 +129,31 @@ class Reader(Sequence[VideoFrame]):
         seek_time = int(ts * av.time_base)
         if self.logger:
             self.logger.warning(f"seeking to {ts:.5f}s")
-        self.container.seek(seek_time)
+        self._container.seek(seek_time)
         self.stats.seeks += 1
         self.decoder_index = -1 if want_start else None
-        self.buffer.clear()
+        self._buffer.clear()
         self._frame_buffer.clear()
 
     @property
-    def stream(self) -> av.video.stream.VideoStream:
-        return self.container.streams.video[0]
+    def _stream(self) -> av.video.stream.VideoStream:
+        return self._container.streams.video[0]
 
     @cached_property
-    def times_from_container(self) -> TimesArray:
-        assert self.stream.time_base
-        times = np.array(self.pts * float(self.stream.time_base), dtype=np.float64)
+    def _times_from_container(self) -> TimesArray:
+        assert self._stream.time_base
+        times = np.array(self._pts * float(self._stream.time_base), dtype=np.float64)
         return times
 
     @cached_property
-    def pts(self) -> PTSArray:
+    def _pts(self) -> PTSArray:
         pts = []
-        assert self.stream.time_base
+        assert self._stream.time_base
         if self.logger:
             self.logger.warning("demuxing all packets to get pts")
-        self.seek(0)
+        self._seek(0)
         count = 0
-        for packet in self.container.demux(self.stream):
+        for packet in self._container.demux(self._stream):
             if packet.pts is None:
                 continue
             count += 1
@@ -168,13 +168,13 @@ class Reader(Sequence[VideoFrame]):
         return np.array(pts)
 
     def __len__(self) -> int:
-        if self.stream.frames is not None:
-            return self.stream.frames
+        if self._stream.frames is not None:
+            return self._stream.frames
         return len(self.times)
 
     @property
-    def demuxer(self) -> Iterator[av.packet.Packet]:
-        for packet in self.container.demux(self.stream):
+    def _demuxer(self) -> Iterator[av.packet.Packet]:
+        for packet in self._container.demux(self._stream):
             self.is_at_start = False
             if self.logger:
                 packet_time_str = "      "
@@ -201,7 +201,7 @@ class Reader(Sequence[VideoFrame]):
                 self.logger.debug(f"decoded overage {frame}")
             yield frame
 
-        for packet in self.demuxer:
+        for packet in self._demuxer:
             try:
                 frames = cast(Iterator[av.video.frame.VideoFrame], packet.decode())
             except av.error.EOFError as e:
@@ -246,7 +246,7 @@ class Reader(Sequence[VideoFrame]):
 
         return start_index, stop_index
 
-    def get_frames(self, key: int | slice) -> Sequence[VideoFrame]:  # noqa: C901
+    def _get_frames(self, key: int | slice) -> Sequence[VideoFrame]:  # noqa: C901
         start_index, stop_index = self._parse_key(key)
         if self.logger:
             self.logger.info(f"get_frames: [{start_index}:{stop_index}]")
@@ -254,17 +254,17 @@ class Reader(Sequence[VideoFrame]):
         result = list[VideoFrame]()
 
         # buffered frames logic
-        if self.buffer:
+        if self._buffer:
             if self.logger:
-                self.logger.info(f"buffer: {_summarize_frames(self.buffer)}")
+                self.logger.info(f"buffer: {_summarize_frames(self._buffer)}")
 
-            distance = start_index - self.buffer[0].index
+            distance = start_index - self._buffer[0].index
             buffer_contains_wanted_frames = distance >= 0 and distance <= len(
-                self.buffer
+                self._buffer
             )
             if buffer_contains_wanted_frames:
                 # TODO(dan): we can be faster here if we just use indices
-                for buffered_frame in self.buffer:
+                for buffered_frame in self._buffer:
                     if start_index <= buffered_frame.index < stop_index:
                         result.append(buffered_frame)
 
@@ -295,16 +295,16 @@ class Reader(Sequence[VideoFrame]):
         # seeking logic
         wanted_distance = None
         if self.decoder_index is not None and self.decoder_index + 1 == start_index:
-            wanted_start_time = 0 if not self.buffer else self.buffer[-1].time
+            wanted_start_time = 0 if not self._buffer else self._buffer[-1].time
         else:
             if self.decoder_index is not None:
                 distance = distance = start_index - self.decoder_index - 1
-                assert self.buffer.maxlen
-                if 0 < distance < self.buffer.maxlen:
+                assert self._buffer.maxlen
+                if 0 < distance < self._buffer.maxlen:
                     wanted_distance = distance
             if wanted_distance is None:
                 wanted_start_time = self.times[start_index]
-                self.seek(wanted_start_time)
+                self._seek(wanted_start_time)
 
         if self.logger and wanted_distance is not None:
             self.logger.debug(
@@ -332,7 +332,7 @@ class Reader(Sequence[VideoFrame]):
             frame = VideoFrame(av_frame, self.decoder_index, timestamp)
             if self.logger:
                 self.logger.debug(f"  decoded {frame}")
-            self.buffer.append(frame)
+            self._buffer.append(frame)
             add_frame = (
                 count > wanted_distance
                 if wanted_distance is not None
@@ -353,20 +353,16 @@ class Reader(Sequence[VideoFrame]):
     def __getitem__(self, key: slice) -> Sequence[VideoFrame]: ...
 
     def __getitem__(self, key: int | slice) -> VideoFrame | Sequence[VideoFrame]:
-        frames = self.get_frames(key)
+        frames = self._get_frames(key)
         if isinstance(key, int):
             if not frames:
                 raise IndexError(f"index: {key} not found")
             return frames[0]
         return frames
 
-    @property
-    def by_idx(self) -> "Reader":
-        return self
-
     @cached_property
-    def by_pts(self) -> Indexer[VideoFrame]:
-        return Indexer(self.pts, self)
+    def _by_pts(self) -> Indexer[VideoFrame]:
+        return Indexer(self._pts, self)
 
     @cached_property
     def by_times(self) -> Indexer[VideoFrame]:
@@ -389,7 +385,11 @@ class Reader(Sequence[VideoFrame]):
         self.close()
 
     def close(self) -> None:
-        self.container.close()
+        self._container.close()
+
+    @property
+    def _duration_pts(self) -> int:
+        return cast(int, self._container.duration)
 
 
 def _summarize_frames(result: list[VideoFrame] | deque[VideoFrame]) -> str:

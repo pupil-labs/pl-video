@@ -79,7 +79,7 @@ def reader_with_ts(video_path: Path, correct_data: PacketData) -> Reader:
 
 
 def test_pts(reader: Reader, correct_data: PacketData) -> None:
-    assert list(reader.pts) == correct_data.pts
+    assert list(reader._pts) == correct_data.pts
 
 
 def test_iteration(reader: Reader, correct_data: PacketData) -> None:
@@ -130,7 +130,7 @@ def test_by_idx(reader: Reader, correct_data: PacketData) -> None:
 
 def test_by_pts(reader: Reader, correct_data: PacketData) -> None:
     for expected_pts in measure_fps(correct_data.pts):
-        frame = reader.by_pts[expected_pts]
+        frame = reader._by_pts[expected_pts]
         assert frame.pts == expected_pts
 
     assert reader.stats.seeks == 1  # one seek needed to reset after loading all pts
@@ -162,7 +162,7 @@ def test_gop_size_on_seeked_container_within_gop_size(
 def test_seek_avoidance_arbitrary_seek(
     reader: Reader, correct_data: PacketData
 ) -> None:
-    reader.by_idx[correct_data.gop_size * 2]
+    reader[correct_data.gop_size * 2]
     assert reader.stats.decodes < correct_data.gop_size
     assert reader.stats.seeks == 1  # one seek to get pts
 
@@ -172,22 +172,22 @@ def test_seek_avoidance(reader: Reader, correct_data: PacketData) -> None:
     assert reader.stats.decodes == 0
 
     # we dont need to seek when loading the first frame
-    reader.by_idx[0]
+    reader[0]
     assert reader.stats.seeks == 0
     assert reader.stats.decodes == 1
 
     # a second access will load the frame from buffer and not seek/decode
-    reader.by_idx[0]
+    reader[0]
     assert reader.stats.seeks == 0
     assert reader.stats.decodes == 1
 
     # getting the second frame will also not require a seek
-    reader.by_idx[1]
+    reader[1]
     assert reader.stats.seeks == 0
     assert reader.stats.decodes == 2
 
     # moving forward in same keyframe's worth of frames won't seek
-    frames = reader.by_idx[10:20]
+    frames = reader[10:20]
     assert len(frames) == 10
     assert [f.pts for f in frames] == correct_data.pts[10:20]
     assert reader.stats.seeks == 0
@@ -195,14 +195,14 @@ def test_seek_avoidance(reader: Reader, correct_data: PacketData) -> None:
 
     gop_size = correct_data.gop_size
     # moving forward till next keyframe won't seek
-    frame = reader.by_idx[gop_size]
+    frame = reader[gop_size]
     assert frame.index == gop_size
     assert reader.stats.seeks == 0
     assert reader.stats.decodes == gop_size + 1
 
     # no seek even when getting last frame of that next keyframe
     previous_decodes = reader.stats.decodes
-    frame = reader.by_idx[gop_size * 2 - 1]
+    frame = reader[gop_size * 2 - 1]
     assert frame.index == gop_size * 2 - 1
     assert frame.pts == correct_data.pts[gop_size * 2 - 1]
     assert reader.stats.seeks == 0
@@ -285,7 +285,7 @@ def test_consuming_lazy_frame_slice(reader: Reader, correct_data: PacketData) ->
     reader.lazy_frame_slice_limit = 30
 
     num_wanted_frames = stop - start
-    frames = reader.by_idx[start:stop]
+    frames = reader[start:stop]
     assert len(frames) == stop - start
     assert reader.stats.seeks == 0
 
@@ -305,16 +305,16 @@ def test_consuming_lazy_frame_slice(reader: Reader, correct_data: PacketData) ->
 
 def test_arbitrary_index(reader: Reader, correct_data: PacketData) -> None:
     for i in [0, 1, 2, 10, 20, 59, 70, 150]:
-        assert reader.by_idx[i].pts == correct_data.pts[i]
+        assert reader[i].pts == correct_data.pts[i]
     for i in [-1, -10, -20, -150]:
-        assert reader.by_idx[i].pts == correct_data.pts[i]
+        assert reader[i].pts == correct_data.pts[i]
 
 
 def test_arbitrary_slices(reader: Reader, correct_data: PacketData) -> None:
-    assert [f.pts for f in reader.by_idx[100:101]] == correct_data.pts[100:101]
-    assert [f.pts for f in reader.by_idx[10:20]] == correct_data.pts[10:20]
-    assert [f.pts for f in reader.by_idx[20:30]] == correct_data.pts[20:30]
-    assert [f.pts for f in reader.by_idx[5:8]] == correct_data.pts[5:8]
+    assert [f.pts for f in reader[100:101]] == correct_data.pts[100:101]
+    assert [f.pts for f in reader[10:20]] == correct_data.pts[10:20]
+    assert [f.pts for f in reader[20:30]] == correct_data.pts[20:30]
+    assert [f.pts for f in reader[5:8]] == correct_data.pts[5:8]
 
 
 def test_access_next_keyframe(reader: Reader, correct_data: PacketData) -> None:

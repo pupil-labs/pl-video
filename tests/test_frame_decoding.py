@@ -26,11 +26,11 @@ def test_decode(video_path: Path, pixel_format: PixelFormat) -> None:
 def test_decoded_frame_correctness(main_video_path: Path) -> None:
     reader = Reader(main_video_path)
 
-    frame0 = reader.by_idx[0]
+    frame0 = reader[0]
     assert frame0.bgr.mean() == 186.91599114583335
 
-    frame50 = reader.by_idx[50]
+    frame50 = reader[50]
     assert frame50.rgb.mean() == 163.7086623263889
 
-    frame100 = reader.by_idx[100]
+    frame100 = reader[100]
     assert frame100.gray.mean() == 162.1663390625
