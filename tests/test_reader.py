@@ -72,12 +72,6 @@ def reader(video_path: Path) -> Reader:
     return Reader(video_path)
 
 
-@pytest.fixture
-def reader_with_ts(video_path: Path, correct_data: PacketData) -> Reader:
-    timestamps = np.array([i / 10.0 for i in range(len(correct_data.pts))])
-    return Reader(video_path, timestamps)
-
-
 def test_pts(reader: Reader, correct_data: PacketData) -> None:
     assert list(reader._pts) == correct_data.pts
 
@@ -134,6 +128,43 @@ def test_by_pts(reader: Reader, correct_data: PacketData) -> None:
         assert frame.pts == expected_pts
 
     assert reader.stats.seeks == 1  # one seek needed to reset after loading all pts
+
+
+def test_accessing_times_while_decoding(
+    reader: Reader, correct_data: PacketData
+) -> None:
+    for i, frame in enumerate(reader):
+        if i < 100:
+            assert Reader._pts.attrname not in reader.__dict__  # type: ignore
+        else:
+            reader.times  # noqa: B018
+            assert Reader._pts.attrname in reader.__dict__  # type: ignore
+        assert frame.pts == correct_data.pts[i]
+
+
+def test_accessing_times_while_decoding_by_frame_step(
+    reader: Reader, correct_data: PacketData
+) -> None:
+    for i in range(0, len(correct_data.pts), 2):
+        if i < 10:
+            assert Reader._pts.attrname not in reader.__dict__  # type: ignore
+            frame = reader[i]
+            assert frame.pts == correct_data.pts[i]
+        else:
+            reader.times  # noqa: B018
+            assert Reader._pts.attrname in reader.__dict__  # type: ignore
+            frame = reader[i]
+            assert frame.pts == correct_data.pts[i]
+
+
+def test_accessing_times_before_decoding(
+    reader: Reader, correct_data: PacketData
+) -> None:
+    assert Reader._pts.attrname not in reader.__dict__  # type: ignore
+    reader.times  # noqa: B018
+    assert Reader._pts.attrname in reader.__dict__  # type: ignore
+    for i, frame in enumerate(reader):
+        assert frame.pts == correct_data.pts[i]
 
 
 def test_gop_size(reader: Reader, correct_data: PacketData) -> None:
@@ -341,15 +372,9 @@ def test_access_frame_before_next_keyframe(
     assert reader.stats.seeks == 0
 
 
-def test_by_ts_without_passed_in_timestamps(
-    reader: Reader, correct_data: PacketData
-) -> None:
+def test_by_time(reader: Reader, correct_data: PacketData) -> None:
     for time in correct_data.times:
         if time > 1:
             first_after_1s = time
             break
     assert reader.by_time[1.0:5.0][0].ts == first_after_1s  # type: ignore
-
-
-def test_by_ts_with_passed_in_timestamps(reader_with_ts: Reader) -> None:
-    assert reader_with_ts.by_time[0.3].ts == 0.3
