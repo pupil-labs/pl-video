@@ -28,6 +28,9 @@ class PacketData:
             )
         }]"""
 
+    def __len__(self) -> int:
+        return len(self.pts)
+
     def __repr__(self) -> str:
         return (
             f"{self.__class__.__name__}("
@@ -79,3 +82,8 @@ def reader(multi_part_video_paths: list[str]) -> MultiPartReader:
 def test_indexing(reader: MultiPartReader, correct_data: PacketData) -> None:
     for i in range(len(reader)):
         assert reader[i].index == i
+
+
+def test_reverse_iteration(reader: MultiPartReader, correct_data: PacketData) -> None:
+    for i in reversed(range(len(correct_data))):
+        assert reader[i].time == correct_data.times[i]
