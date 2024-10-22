@@ -307,6 +307,7 @@ class Reader(Sequence[VideoFrame]):
 
         # seeking logic
         wanted_distance = None
+        wanted_start_time = None
         if self.decoder_index is not None and self.decoder_index + 1 == start_index:
             wanted_start_time = 0 if not self._buffer else self._buffer[-1].time
         else:
@@ -318,6 +319,8 @@ class Reader(Sequence[VideoFrame]):
             if wanted_distance is None:
                 wanted_start_time = self.times[start_index]
                 self._seek(wanted_start_time)
+
+        assert not (wanted_start_time is None and wanted_distance is None)
 
         if self.logger and wanted_distance is not None:
             self.logger.debug(
@@ -378,13 +381,8 @@ class Reader(Sequence[VideoFrame]):
         return Indexer(self._pts, self)
 
     @cached_property
-    def by_times(self) -> Indexer[VideoFrame]:
+    def by_time(self) -> Indexer[VideoFrame]:
         return Indexer(self.times, self)
-
-    @cached_property
-    def by_ts(self) -> Indexer[VideoFrame]:
-        assert self._times is not None
-        return Indexer(self._times, self)
 
     def __enter__(self) -> "Reader":
         return self

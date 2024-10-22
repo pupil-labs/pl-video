@@ -348,8 +348,8 @@ def test_by_ts_without_passed_in_timestamps(
         if time > 1:
             first_after_1s = time
             break
-    assert reader.by_times[1.0:5.0][0].ts == first_after_1s  # type: ignore
+    assert reader.by_time[1.0:5.0][0].ts == first_after_1s  # type: ignore
 
 
 def test_by_ts_with_passed_in_timestamps(reader_with_ts: Reader) -> None:
-    assert reader_with_ts.by_times[0.3].ts == 0.3
+    assert reader_with_ts.by_time[0.3].ts == 0.3
