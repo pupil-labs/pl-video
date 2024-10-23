@@ -105,6 +105,7 @@ class Reader(Sequence[VideoFrame]):
         self._container.seek(0)
         have_seen_keyframe_already = False
         count = 0
+        # we use the native av demuxer to avoid logging overheads
         for packet in self._container.demux(self._stream):
             if packet.pts is None:
                 continue
@@ -162,6 +163,7 @@ class Reader(Sequence[VideoFrame]):
         if self.logger:
             self.logger.warning("demuxing all packets to get pts")
 
+        # we demux straight from the av container here, to avoid our overheads
         self._seek(0)
         count = 0
         pts = []
@@ -186,13 +188,24 @@ class Reader(Sequence[VideoFrame]):
 
     @property
     def _demuxer(self) -> Iterator[av.packet.Packet]:
+        """Demuxed packets from the video
+
+        We only use this demuxer for the decoder as it has overheads for logging
+        When loading all the pts in a container we use the native av demuxer instead
+        """
         logpackets = self.logger.debug if self.logger else None
+        stream_time_bases = {
+            stream: float(stream.time_base) if stream.time_base is not None else 1
+            for stream in self._container.streams
+        }
         for packet in self._container.demux(self._stream):
             self.is_at_start = False
             if logpackets:
                 packet_time_str = "      "
                 if packet.pts is not None:
-                    packet_time_str = f"{float(packet.dts * packet.time_base):.3f}s"
+                    packet_time_str = (
+                        f"{packet.pts * stream_time_bases[packet.stream]:.3f}s"
+                    )
 
                 logpackets(
                     f"demuxed"
