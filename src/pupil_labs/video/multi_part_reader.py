@@ -64,7 +64,7 @@ class MultiPartReader(MultiSequence[VideoFrame]):
         all_times = []
         for i in range(len(self.sequences)):
             times = cast(Reader, self.sequences[i]).times
-            times += self._start_times[i]
+            times = times.copy() + self._start_times[i]
             all_times.append(times)
         return np.concatenate(all_times)
 
