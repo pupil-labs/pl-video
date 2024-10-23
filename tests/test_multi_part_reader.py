@@ -7,12 +7,13 @@ import pytest
 
 from pupil_labs.video.multi_part_reader import MultiPartReader
 
+from .utils import measure_fps
+
 Slice = type("", (object,), {"__getitem__": lambda _, key: key})()
 
 
 @dataclass
 class PacketData:
-    pts: list[int]
     times: list[float]
     keyframe_indices: list[int]
 
@@ -31,7 +32,7 @@ class PacketData:
         }]"""
 
     def __len__(self) -> int:
-        return len(self.pts)
+        return len(self.times)
 
     def __repr__(self) -> str:
         return (
@@ -39,8 +40,7 @@ class PacketData:
             + ", ".join(
                 f"{key}={value}"
                 for key, value in [
-                    ("len", len(self.pts)),
-                    ("pts", self._summarize_list(self.pts)),
+                    ("len", len(self.times)),
                     ("times", self._summarize_list(self.times)),
                     ("keyframe_indices", self._summarize_list(self.keyframe_indices)),
                 ]
@@ -51,9 +51,7 @@ class PacketData:
 
 @pytest.fixture
 def correct_data(multi_part_video_paths: list[str]) -> PacketData:
-    pts_bias = 0
     times_bias = 0
-    pts = []
     times = []
     index = 0
     keyframe_indices = []
@@ -65,15 +63,13 @@ def correct_data(multi_part_video_paths: list[str]) -> PacketData:
         for packet in container.demux(stream):
             if packet.pts is None:
                 continue
-            pts.append(packet.pts + pts_bias)
             times.append(float(packet.pts * stream.time_base) + times_bias)
             if packet.is_keyframe:
                 keyframe_indices.append(index)
             index += 1
 
-        pts_bias += container.duration
-        times_bias = pts_bias / av.time_base
-    return PacketData(pts=pts, times=times, keyframe_indices=keyframe_indices)
+        times_bias += container.duration / av.time_base
+    return PacketData(times=times, keyframe_indices=keyframe_indices)
 
 
 @pytest.fixture
@@ -81,18 +77,51 @@ def reader(multi_part_video_paths: list[str]) -> MultiPartReader:
     return MultiPartReader(multi_part_video_paths)
 
 
-def test_indexing(reader: MultiPartReader, correct_data: PacketData) -> None:
-    for i in range(len(reader)):
-        frame = reader[i]
-        assert frame.index == i
-        assert frame.ts == correct_data.times[i]
+def test_iteration(reader: MultiPartReader, correct_data: PacketData) -> None:
+    frame_count = 0
+    for frame, expected_times in measure_fps(zip(reader, correct_data.times)):
+        assert frame.ts == expected_times
+        frame_count += 1
+
+    assert frame_count == len(correct_data.times)
 
 
-def test_reverse_iteration(reader: MultiPartReader, correct_data: PacketData) -> None:
+def test_backward_iteration_from_end(
+    reader: MultiPartReader, correct_data: PacketData
+) -> None:
+    total_keyframes = len(correct_data.keyframe_indices)
+    assert total_keyframes <= len(correct_data.times)
+
     for i in reversed(range(len(reader))):
+        assert reader[i].ts == correct_data.times[i]
+
+
+def test_backward_iteration_from_N(
+    reader: MultiPartReader, correct_data: PacketData
+) -> None:
+    total_keyframes = len(correct_data.keyframe_indices)
+    assert total_keyframes <= len(correct_data.times)
+
+    N = 100
+    for i in reversed(range(N)):
+        assert reader[i].ts == correct_data.times[i]
+
+
+def test_by_idx(reader: MultiPartReader, correct_data: PacketData) -> None:
+    frame_count = 0
+    for i, expected_time in measure_fps(enumerate(correct_data.times)):
         frame = reader[i]
-        assert frame.index == i
-        assert frame.ts == correct_data.times[i]
+        assert frame.ts == expected_time
+        frame_count += 1
+
+    assert frame_count == len(correct_data.times)
+
+
+def test_arbitrary_index(reader: MultiPartReader, correct_data: PacketData) -> None:
+    for i in [0, 1, 2, 10, 20, 59, 70, 150]:
+        assert reader[i].ts == correct_data.times[i]
+    for i in [-1, -10, -20, -150]:
+        assert reader[i].ts == correct_data.times[i]
 
 
 @pytest.mark.parametrize(
@@ -105,6 +134,10 @@ def test_reverse_iteration(reader: MultiPartReader, correct_data: PacketData) ->
         Slice[-100:],
         Slice[-100:-50],
         Slice[50:100],
+        Slice[100:101],
+        Slice[10:20],
+        Slice[20:30],
+        Slice[5:8],
     ],
 )
 def test_slices(
