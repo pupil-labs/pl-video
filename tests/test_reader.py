@@ -302,6 +302,10 @@ slice(None, 300, None)
         Slice[-100:],
         Slice[-100:-50],
         Slice[50:100],
+        Slice[100:101],
+        Slice[10:20],
+        Slice[20:30],
+        Slice[5:8],
     ],
 )
 def test_slices(reader: Reader, slice_arg: slice, correct_data: PacketData) -> None:
@@ -339,13 +343,6 @@ def test_arbitrary_index(reader: Reader, correct_data: PacketData) -> None:
         assert reader[i].pts == correct_data.pts[i]
     for i in [-1, -10, -20, -150]:
         assert reader[i].pts == correct_data.pts[i]
-
-
-def test_arbitrary_slices(reader: Reader, correct_data: PacketData) -> None:
-    assert [f.pts for f in reader[100:101]] == correct_data.pts[100:101]
-    assert [f.pts for f in reader[10:20]] == correct_data.pts[10:20]
-    assert [f.pts for f in reader[20:30]] == correct_data.pts[20:30]
-    assert [f.pts for f in reader[5:8]] == correct_data.pts[5:8]
 
 
 def test_access_next_keyframe(reader: Reader, correct_data: PacketData) -> None:

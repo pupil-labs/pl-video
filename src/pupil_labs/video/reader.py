@@ -5,7 +5,7 @@ from functools import cached_property
 from logging import Logger, getLogger
 from pathlib import Path
 from types import TracebackType
-from typing import cast, overload
+from typing import Sized, cast, overload
 
 import av.container
 import av.error
@@ -31,6 +31,29 @@ class Stats:
 
     seeks: int = 0
     decodes: int = 0
+
+
+def index_key_to_indices(key: int | slice, obj: Sized) -> tuple[int, int]:
+    if isinstance(key, slice):
+        start_index, stop_index = key.start, key.stop
+    elif isinstance(key, int):
+        start_index, stop_index = key, key + 1
+        if key < 0:
+            start_index = len(obj) + key
+            stop_index = start_index + 1
+    else:
+        raise TypeError(f"key must be int or slice, not {type(key)}")
+
+    if start_index is None:
+        start_index = 0
+    if start_index < 0:
+        start_index = len(obj) + start_index
+    if stop_index is None:
+        stop_index = len(obj)
+    if stop_index < 0:
+        stop_index = len(obj) + stop_index
+
+    return start_index, stop_index
 
 
 class Reader(Sequence[VideoFrame]):
@@ -237,33 +260,12 @@ class Reader(Sequence[VideoFrame]):
                 self.stats.decodes += 1
                 yield frame
 
-    def _calculate_absolute_indexes(self, key: int | slice) -> tuple[int, int]:
-        if isinstance(key, slice):
-            start_index, stop_index = key.start, key.stop
-        elif isinstance(key, int):
-            start_index, stop_index = key, key + 1
-            if key < 0:
-                start_index = len(self) + key
-                stop_index = start_index + 1
-        else:
-            raise TypeError(f"key must be int or slice, not {type(key)}")
-
-        if start_index is None:
-            start_index = 0
-        if start_index < 0:
-            start_index = len(self) + start_index
-        if stop_index is None:
-            stop_index = len(self)
-        if stop_index < 0:
-            stop_index = len(self) + stop_index
-
-        return start_index, stop_index
-
     @cached_property
     def _get_frames_buffer(self) -> deque[VideoFrame]:
         return deque(maxlen=self.gop_size)
 
     def _get_frames(self, key: int | slice) -> Sequence[VideoFrame]:  # noqa: C901
+        start_index, stop_index = index_key_to_indices(key, self)
         """Return frames for an index or slice
 
         This returns a sequence of frames at a particular index or slice in the video
@@ -280,6 +282,9 @@ class Reader(Sequence[VideoFrame]):
         #   - avoid method calls unless necessary
         #   - minimize long.nested.attribute.accesses
         #   - avoid formatting log messages unless logging needed
+
+        if self.logger:
+            self.logger.info(f"get_frames: [{start_index}:{stop_index}]")
 
         loginfo = self.logger.info if self.logger else None
         logdebug = self.logger.debug if self.logger else None
@@ -444,6 +449,18 @@ class Reader(Sequence[VideoFrame]):
     @property
     def _duration_pts(self) -> int:
         return cast(int, self._container.duration)
+
+    @property
+    def duration(self) -> float:
+        return self._duration_pts / av.time_base
+
+    @property
+    def width(self) -> int:
+        return cast(int, self._stream.width)
+
+    @property
+    def height(self) -> int:
+        return cast(int, self._stream.height)
 
 
 def _summarize_frames(result: list[VideoFrame] | deque[VideoFrame]) -> str:
