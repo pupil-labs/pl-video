@@ -146,3 +146,18 @@ def test_slices(
     for frame, index in zip(reader[slice_arg], range(*slice_arg.indices(len(reader)))):
         assert frame.index == index
         assert frame.ts == correct_data.times[index]
+
+
+def test_by_time(reader: MultiPartReader, correct_data: PacketData) -> None:
+    for time in correct_data.times:
+        if time > 1:
+            first_after_1s = time
+            break
+    assert reader.by_time[1.0:5.0][0].ts == first_after_1s  # type: ignore
+
+    for time in correct_data.times:
+        if time > 15:
+            first_after_15s = time
+            break
+    reader[381]
+    assert reader.by_time[15.0:20.0][0].ts == first_after_15s  # type: ignore

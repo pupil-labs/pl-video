@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
+from functools import cached_property
 from pathlib import Path
 from types import TracebackType
 from typing import Generic, TypeVar, cast, overload
@@ -7,7 +8,8 @@ from typing import Generic, TypeVar, cast, overload
 import numpy as np
 
 from .frameslice import FrameSlice
-from .reader import Reader, index_key_to_indices
+from .indexer import Indexer
+from .reader import Reader, TimesArray, index_key_to_indices
 from .video_frame import VideoFrame
 
 T = TypeVar("T")
@@ -57,6 +59,15 @@ class MultiPartReader(MultiSequence[VideoFrame]):
         )
         super().__init__(video_readers)
 
+    @cached_property
+    def times(self) -> TimesArray:
+        all_times = []
+        for i in range(len(self.sequences)):
+            times = cast(Reader, self.sequences[i]).times
+            times += self._start_times[i]
+            all_times.append(times)
+        return np.concatenate(all_times)
+
     @overload
     def __getitem__(self, key: int) -> VideoFrame: ...
     @overload
@@ -75,6 +86,10 @@ class MultiPartReader(MultiSequence[VideoFrame]):
             return frame
         else:
             return FrameSlice[VideoFrame](self, key)
+
+    @cached_property
+    def by_time(self) -> Indexer[VideoFrame]:
+        return Indexer(self.times, self)
 
     def __enter__(self) -> "MultiPartReader":
         return self
