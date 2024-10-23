@@ -460,20 +460,18 @@ class Reader(Sequence[VideoFrame]):
         self._container.close()
 
     @property
-    def _duration_pts(self) -> int:
-        return cast(int, self._container.duration)
-
-    @property
     def duration(self) -> float:
-        return self._duration_pts / av.time_base
+        if self._container.duration is None:
+            return float(self.times[-1])
+        return self._container.duration / av.time_base
 
     @property
     def width(self) -> int:
-        return cast(int, self._stream.width)
+        return self._stream.width
 
     @property
     def height(self) -> int:
-        return cast(int, self._stream.height)
+        return self._stream.height
 
 
 def _summarize_frames(result: list[VideoFrame] | deque[VideoFrame]) -> str:
