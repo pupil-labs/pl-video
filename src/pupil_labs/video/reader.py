@@ -389,6 +389,14 @@ class Reader(Sequence[VideoFrame]):
     def _duration_pts(self) -> int:
         return cast(int, self._container.duration)
 
+    @property
+    def width(self) -> int:
+        return cast(int, self._stream.width)
+
+    @property
+    def height(self) -> int:
+        return cast(int, self._stream.height)
+
 
 def _summarize_frames(result: list[VideoFrame] | deque[VideoFrame]) -> str:
     indices = [frame.index for frame in result]
