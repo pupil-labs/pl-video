@@ -321,7 +321,7 @@ class Reader(Sequence[VideoFrame]):
             assert isinstance(av_frame, av.video.frame.VideoFrame)
             assert av_frame.time is not None
 
-            if not pts_were_loaded and pts_attribute in self.__dict__:  # type: ignore
+            if not pts_were_loaded and pts_attribute in self.__dict__:
                 # something accessed the pts while we were decoding, we have to restart
                 if self.logger:
                     self.logger.warning("pts were loaded mid decoding")
@@ -388,6 +388,10 @@ class Reader(Sequence[VideoFrame]):
     @property
     def _duration_pts(self) -> int:
         return cast(int, self._container.duration)
+
+    @property
+    def duration(self) -> float:
+        return self._duration_pts / av.time_base
 
     @property
     def width(self) -> int:

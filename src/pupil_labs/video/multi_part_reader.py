@@ -73,6 +73,9 @@ class MultiPartReader(MultiSequence[VideoFrame]):
             raise ValueError("paths must not be empty")
 
         video_readers = [Reader(path) for path in paths]
+        self._start_times = np.cumsum(
+            [0] + [reader.duration for reader in video_readers]
+        )
         super().__init__(video_readers)
 
     @overload
@@ -84,7 +87,11 @@ class MultiPartReader(MultiSequence[VideoFrame]):
         if isinstance(key, int):
             frame = super().__getitem__(key)
             frame.index = key
-            # TODO(marc): How do we want to set frame.ts and frame.pts?
+
+            part_index = (
+                np.searchsorted(self._start_indices, key, side="right").item() - 1
+            )
+            frame.ts = frame.ts + self._start_times[part_index]
             return frame
         else:
             return FrameSlice[VideoFrame](self, key)

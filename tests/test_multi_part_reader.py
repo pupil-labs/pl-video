@@ -72,7 +72,7 @@ def correct_data(multi_part_video_paths: list[str]) -> PacketData:
             index += 1
 
         pts_bias += container.duration
-        times_bias = pts_bias * stream.time_base
+        times_bias = pts_bias / av.time_base
     return PacketData(pts=pts, times=times, keyframe_indices=keyframe_indices)
 
 
@@ -83,12 +83,16 @@ def reader(multi_part_video_paths: list[str]) -> MultiPartReader:
 
 def test_indexing(reader: MultiPartReader, correct_data: PacketData) -> None:
     for i in range(len(reader)):
-        assert reader[i].index == i
+        frame = reader[i]
+        assert frame.index == i
+        assert frame.ts == correct_data.times[i]
 
 
 def test_reverse_iteration(reader: MultiPartReader, correct_data: PacketData) -> None:
     for i in reversed(range(len(reader))):
-        assert reader[i].index == i
+        frame = reader[i]
+        assert frame.index == i
+        assert frame.ts == correct_data.times[i]
 
 
 @pytest.mark.parametrize(
@@ -108,3 +112,4 @@ def test_slices(
 ) -> None:
     for frame, index in zip(reader[slice_arg], range(*slice_arg.indices(len(reader)))):
         assert frame.index == index
+        assert frame.ts == correct_data.times[index]
