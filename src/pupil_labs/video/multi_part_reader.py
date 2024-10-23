@@ -7,7 +7,7 @@ from typing import Generic, TypeVar, cast, overload
 import numpy as np
 
 from .frameslice import FrameSlice
-from .reader import Reader
+from .reader import Reader, index_key_to_indices
 from .video_frame import VideoFrame
 
 T = TypeVar("T")
@@ -27,38 +27,17 @@ class MultiSequence(Generic[T], Sequence[T]):
 
     def __getitem__(self, key: int | slice) -> T | Sequence[T]:
         if isinstance(key, int):
-            if key >= len(self):
+            index = index_key_to_indices(key, len(self))[0]
+            if index >= len(self):
                 raise IndexError("Index out of range.")
 
             part_index = (
-                np.searchsorted(self._start_indices, key, side="right").item() - 1
+                np.searchsorted(self._start_indices, index, side="right").item() - 1
             )
-            part_key = int(key - self._start_indices[part_index])
+            part_key = int(index - self._start_indices[part_index])
             return self.sequences[part_index][part_key]
         else:
             raise NotImplementedError
-
-    def _parse_key(self, key: int | slice) -> tuple[int, int]:
-        if isinstance(key, slice):
-            start_index, stop_index = key.start, key.stop
-        elif isinstance(key, int):
-            start_index, stop_index = key, key + 1
-            if key < 0:
-                start_index = len(self) + key
-                stop_index = start_index + 1
-        else:
-            raise TypeError(f"key must be int or slice, not {type(key)}")
-
-        if start_index is None:
-            start_index = 0
-        if start_index < 0:
-            start_index = len(self) + start_index
-        if stop_index is None:
-            stop_index = len(self)
-        if stop_index < 0:
-            stop_index = len(self) + stop_index
-
-        return start_index, stop_index
 
     def __len__(self) -> int:
         return sum(len(part) for part in self.sequences)
@@ -86,10 +65,11 @@ class MultiPartReader(MultiSequence[VideoFrame]):
     def __getitem__(self, key: int | slice) -> VideoFrame | Sequence[VideoFrame]:
         if isinstance(key, int):
             frame = super().__getitem__(key)
-            frame.index = key
+            frame.index = index_key_to_indices(key, len(self))[0]
 
             part_index = (
-                np.searchsorted(self._start_indices, key, side="right").item() - 1
+                np.searchsorted(self._start_indices, frame.index, side="right").item()
+                - 1
             )
             frame.ts = frame.ts + self._start_times[part_index]
             return frame
