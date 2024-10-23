@@ -180,7 +180,7 @@ class Reader(Sequence[VideoFrame]):
         return deque()
 
     @property
-    def decoder(self) -> Iterator[av.video.frame.VideoFrame]:
+    def _decoder(self) -> Iterator[av.video.frame.VideoFrame]:
         """Yields decoded av frames from the video stream
 
         This wraps the multithreaded av decoder in order to workaround the way pyav
@@ -336,7 +336,7 @@ class Reader(Sequence[VideoFrame]):
         pts_were_loaded = pts_attribute in self.__dict__
 
         count = 0
-        for av_frame in self.decoder:
+        for av_frame in self._decoder:
             count += 1  # noqa: SIM113
             assert isinstance(av_frame, av.video.frame.VideoFrame)
             assert av_frame.time is not None
