@@ -5,7 +5,7 @@ from functools import cached_property
 from logging import Logger, getLogger
 from pathlib import Path
 from types import TracebackType
-from typing import cast, overload
+from typing import Sized, cast, overload
 
 import av.container
 import av.error
@@ -37,13 +37,13 @@ class PacketData:
     times: TimesArray
 
 
-def index_key_to_indices(key: int | slice, length: int) -> tuple[int, int]:
+def index_key_to_indices(key: int | slice, obj: Sized) -> tuple[int, int]:
     if isinstance(key, slice):
         start_index, stop_index = key.start, key.stop
     elif isinstance(key, int):
         start_index, stop_index = key, key + 1
         if key < 0:
-            start_index = length + key
+            start_index = len(obj) + key
             stop_index = start_index + 1
     else:
         raise TypeError(f"key must be int or slice, not {type(key)}")
@@ -51,11 +51,11 @@ def index_key_to_indices(key: int | slice, length: int) -> tuple[int, int]:
     if start_index is None:
         start_index = 0
     if start_index < 0:
-        start_index = length + start_index
+        start_index = len(obj) + start_index
     if stop_index is None:
-        stop_index = length
+        stop_index = len(obj)
     if stop_index < 0:
-        stop_index = length + stop_index
+        stop_index = len(obj) + stop_index
 
     return start_index, stop_index
 
@@ -241,7 +241,7 @@ class Reader(Sequence[VideoFrame]):
         return deque(maxlen=self.gop_size)
 
     def _get_frames(self, key: int | slice) -> Sequence[VideoFrame]:  # noqa: C901
-        start_index, stop_index = index_key_to_indices(key, len(self))
+        start_index, stop_index = index_key_to_indices(key, self)
         if self.logger:
             self.logger.info(f"get_frames: [{start_index}:{stop_index}]")
 
