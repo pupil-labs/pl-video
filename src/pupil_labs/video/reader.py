@@ -27,14 +27,10 @@ TimesArray = npt.NDArray[np.float64]
 
 @dataclass
 class Stats:
+    """Tracks statistics on containers"""
+
     seeks: int = 0
     decodes: int = 0
-
-
-@dataclass
-class PacketData:
-    pts: PTSArray
-    times: TimesArray
 
 
 def index_key_to_indices(key: int | slice, obj: Sized) -> tuple[int, int]:
@@ -105,6 +101,7 @@ class Reader(Sequence[VideoFrame]):
 
     @cached_property
     def gop_size(self) -> int:
+        """Return the amount of frames per keyframe in a video"""
         self._container.seek(0)
         have_seen_keyframe_already = False
         count = 0
@@ -131,15 +128,16 @@ class Reader(Sequence[VideoFrame]):
             stream.thread_type = "FRAME"
         return container
 
-    def _seek(self, ts: float) -> None:
-        want_start = ts == 0
+    def _seek(self, video_secs: float) -> None:
+        """Seek to a time in video seconds in the container"""
+        want_start = video_secs == 0
         if want_start and self.is_at_start:
             return
 
         self.is_at_start = want_start
-        seek_time = int(ts * av.time_base)
+        seek_time = int(video_secs * av.time_base)
         if self.logger:
-            self.logger.warning(f"seeking to {ts:.5f}s")
+            self.logger.warning(f"seeking to {video_secs:.5f}s")
         self._container.seek(seek_time)
         self.stats.seeks += 1
         self.decoder_index = -1 if want_start else None
@@ -152,12 +150,14 @@ class Reader(Sequence[VideoFrame]):
 
     @cached_property
     def times(self) -> TimesArray:
+        """Return the presentation timestamps in float seconds from offset"""
         assert self._stream.time_base
         times = np.array(self._pts * float(self._stream.time_base), dtype=np.float64)
         return times
 
     @cached_property
     def _pts(self) -> PTSArray:
+        """Return the presentation timestamps in video.time_base"""
         assert self._stream.time_base
         if self.logger:
             self.logger.warning("demuxing all packets to get pts")
@@ -171,7 +171,7 @@ class Reader(Sequence[VideoFrame]):
             count += 1
             pts.append(packet.pts)
 
-        # TODO(dan): use .seek() instead?
+        # TODO(dan): can we use .seek() instead?
         self.decoder_index = None
         self.is_at_start = False
 
@@ -186,14 +186,15 @@ class Reader(Sequence[VideoFrame]):
 
     @property
     def _demuxer(self) -> Iterator[av.packet.Packet]:
+        logpackets = self.logger.debug if self.logger else None
         for packet in self._container.demux(self._stream):
             self.is_at_start = False
-            if self.logger:
+            if logpackets:
                 packet_time_str = "      "
                 if packet.pts is not None:
                     packet_time_str = f"{float(packet.dts * packet.time_base):.3f}s"
 
-                self.logger.debug(
+                logpackets(
                     f"demuxed"
                     f" {packet.stream.type[0]}{packet.is_keyframe and 'k' or ' '}"
                     f" {packet_time_str}"
@@ -203,38 +204,61 @@ class Reader(Sequence[VideoFrame]):
 
     @cached_property
     def _decoder_frame_buffer(self) -> deque[av.video.frame.VideoFrame]:
+        """Returns a buffer that holds frames from the decoder"""
         return deque()
 
     @property
-    def decoder(self) -> Iterator[av.video.frame.VideoFrame]:
+    def _decoder(self) -> Iterator[av.video.frame.VideoFrame]:
+        """Yields decoded av frames from the video stream
+
+        This wraps the multithreaded av decoder in order to workaround the way pyav
+        returns packets/frames in that case; it delays returning the first frame
+        and yields multiple frames for the last decoded packet, which means:
+
+        - the decoded frame does not match the demuxed packet per iteration
+        - we would run into EOFError on the last few frames as demuxer has reached end
+
+        This is how the packets/frames look like coming out of av demux/decode:
+
+            packet.pts  packet   decoded           note
+            0           0        []                no frames
+            450         1
+                        ...
+                        14       []                no frames
+            6761        15       [0]               first frame received
+            7211        16       [1]               second frame received
+                        ...
+            None        30       [14, 15 ... 29]   rest of the frames
+
+        So in this generator we buffer every frame that was decoded and then on the
+        next iteration yield those buffered frames first. This ends up in a stream that
+        avoids the second issue.
+        """
+        logdecoded = self.logger.debug if self.logger else None
         while self._decoder_frame_buffer:
+            # here we yield unconsumed frames from the previously packet decode
             frame = self._decoder_frame_buffer.popleft()
-            if self.logger:
-                self.logger.debug(f"decoded overage {frame}")
+            logdecoded and logdecoded(f"yielding previous packet frame: {frame}")
             yield frame
 
         for packet in self._demuxer:
             try:
                 frames = cast(Iterator[av.video.frame.VideoFrame], packet.decode())
             except av.error.EOFError as e:
+                # this shouldn't happen but if it does, handle it
                 if self.logger:
                     self.logger.warning(f"reached end of file: {e}")
                 break
 
+            # add all the decoded frames to the buffer first
             self._decoder_frame_buffer.extend(frames)
+
+            # if we don't consume it entirely, will happen on next iteration of .decoder
             while self._decoder_frame_buffer:
                 frame = self._decoder_frame_buffer.popleft()
-                if self.logger:
-                    self.logger.debug(f"decoding current {frame}")
+                logdecoded and logdecoded(f"yielding current packet frame: {frame}")
                 self.stats.decodes += 1
                 yield frame
-
-        while self._decoder_frame_buffer:
-            frame = self._decoder_frame_buffer.popleft()
-            if self.logger:
-                self.logger.debug(f"decoding after {frame}")
-            self.stats.decodes += 1
-            yield frame
 
     @cached_property
     def _get_frames_buffer(self) -> deque[VideoFrame]:
@@ -242,17 +266,40 @@ class Reader(Sequence[VideoFrame]):
 
     def _get_frames(self, key: int | slice) -> Sequence[VideoFrame]:  # noqa: C901
         start_index, stop_index = index_key_to_indices(key, self)
+        """Return frames for an index or slice
+
+        This returns a sequence of frames at a particular index or slice in the video
+
+        - returns a view/lazy slice for results longer than self.lazy_frame_slice_limit
+        - avoids seeking/demuxing entire video if possible, eg. iterating from start.
+        - buffers decoded frames to avoid seeking / decoding when getting repeat frames
+        - buffers frames after a keyframe to avoid seeking/decoding iterating backwards
+
+        """
+        # NOTE(dan): this is a function that will be called many times during iteration
+        # a lot of the choices made here are in the interest of performance
+        # eg.
+        #   - avoid method calls unless necessary
+        #   - minimize long.nested.attribute.accesses
+        #   - avoid formatting log messages unless logging needed
+
         if self.logger:
             self.logger.info(f"get_frames: [{start_index}:{stop_index}]")
 
+        loginfo = self.logger.info if self.logger else None
+        logdebug = self.logger.debug if self.logger else None
+        logwarning = self.logger.warning if self.logger else None
+
+        start_index, stop_index = self._calculate_absolute_indexes(key)
+        loginfo and loginfo(f"get_frames: [{start_index}:{stop_index}]")
+
         result = list[VideoFrame]()
 
-        # buffered frames logic
+        # BUFFERED FRAMES LOGIC
+        # works out which frames in the current buffer we can use to fulfill the range
+
         if self._get_frames_buffer:
-            if self.logger:
-                self.logger.info(
-                    f"buffer: {_summarize_frames(self._get_frames_buffer)}"
-                )
+            loginfo and loginfo(f"buffer: {_summarize_frames(self._get_frames_buffer)}")
 
             distance = start_index - self._get_frames_buffer[0].index
             buffer_contains_wanted_frames = distance >= 0 and distance <= len(
@@ -266,33 +313,38 @@ class Reader(Sequence[VideoFrame]):
 
             if result:
                 if len(result) == stop_index - start_index:
-                    if self.logger:
-                        self.logger.debug(
-                            f"returning buffered frames: {_summarize_frames(result)}"
-                        )
+                    logdebug and logdebug(
+                        f"returning buffered frames: {_summarize_frames(result)}"
+                    )
                     return result
                 else:
-                    if self.logger:
-                        self.logger.debug(
-                            f"using buffered frames: {_summarize_frames(result)}"
-                        )
+                    logdebug and logdebug(
+                        f"using buffered frames: {_summarize_frames(result)}"
+                    )
             else:
-                if self.logger:
-                    self.logger.debug("no buffered frames found")
+                logdebug and logdebug("no buffered frames found")
 
             start_index = start_index + len(result)
 
         if isinstance(key, slice):
-            # return a lazy list of the video frames
+            resultview = FrameSlice[VideoFrame](self, key)
             if stop_index - start_index < self.lazy_frame_slice_limit:
-                return list(FrameSlice[VideoFrame](self, key))
-            return FrameSlice[VideoFrame](self, key)
+                # small enough result set, return as is
+                return list(resultview)
+            return resultview
 
-        # seeking logic
-        wanted_distance = None
-        wanted_start_time = None
+        # SEEKING LOGIC
+        # Most of this complexity here is to avoid making a seek
+
+        # We have two modes of matching frames, only one will be used to match later:
+        start_index_distance: int | None = None  # frame within keyframe distance away
+        "distance of start_index frame from current index"
+
+        start_index_time: float | None = None  # unknown distance, match on frame.time
+        "frame.time of start_index frame"
+
         if self.decoder_index is not None and self.decoder_index + 1 == start_index:
-            wanted_start_time = (
+            start_index_time = (
                 0 if not self._get_frames_buffer else self._get_frames_buffer[-1].time
             )
         else:
@@ -300,55 +352,63 @@ class Reader(Sequence[VideoFrame]):
                 distance = distance = start_index - self.decoder_index - 1
                 assert self._get_frames_buffer.maxlen
                 if 0 < distance < self._get_frames_buffer.maxlen:
-                    wanted_distance = distance
-            if wanted_distance is None:
-                wanted_start_time = self.times[start_index]
-                self._seek(wanted_start_time)
+                    start_index_distance = distance
+            if start_index_distance is None:
+                start_index_time = float(self.times[start_index])
+                self._seek(start_index_time)
 
-        assert wanted_start_time is not None or wanted_distance is not None
-
-        if self.logger and wanted_distance is not None:
-            self.logger.debug(
-                f"going to iterate {wanted_distance} frames as within keyframe distance"
+        if logdebug and start_index_distance is not None:
+            logdebug(
+                f"iterating {start_index_distance} frames as within keyframe distance"
             )
 
-        # decoding logic
+        # DECODING LOGIC
+        # Iterates over the av frame decoder, buffering the frames that come out
+        # and checking them if they match the currently requested range
+
+        # these variables are used to minimize attribute lookups in the hotloop
         pts_attribute = Reader._pts.attrname  # type: ignore
         pts_were_loaded = pts_attribute in self.__dict__
 
         count = 0
-        for av_frame in self.decoder:
+        for av_frame in self._decoder:
             count += 1  # noqa: SIM113
-            assert isinstance(av_frame, av.video.frame.VideoFrame)
-            assert av_frame.time is not None
 
             if not pts_were_loaded and pts_attribute in self.__dict__:
                 # something accessed the pts while we were decoding, we have to restart
-                if self.logger:
-                    self.logger.warning("pts were loaded mid decoding")
+                logwarning and logwarning("pts were loaded mid decoding")
                 return self._get_frames(key)
 
+            # decoder_index can be None if we have arrived here from a seek
             if self.decoder_index is None:
                 self.decoder_index = int(np.searchsorted(self.times, av_frame.time))
             else:
                 self.decoder_index += 1
 
             frame = VideoFrame(av_frame, self.decoder_index, av_frame.time)
-            if self.logger:
-                self.logger.debug(f"  decoded {frame}")
+            logdebug and logdebug(f"  decoded {frame}")
+
+            # we can be iterating frames that are before the requested range since
+            # seeks will start at a keyframe, we buffer them as access might come later
             self._get_frames_buffer.append(frame)
-            add_frame = (
-                count > wanted_distance
-                if wanted_distance is not None
-                else av_frame.time >= wanted_start_time - self.time_match_tolerance
-            )
-            if add_frame:
+
+            # then match based on if we are in iterate distance mode or match time mode
+            use_frame = False
+            if start_index_distance is not None:
+                use_frame = count > start_index_distance
+            elif start_index_time is not None:
+                use_frame = (
+                    av_frame.time >= start_index_time - self.time_match_tolerance
+                )
+
+            # and only return frames that are in the currently requested range
+            if use_frame:
                 result.append(frame)
+
             if self.decoder_index >= stop_index - 1:
                 break
 
-        if self.logger:
-            self.logger.debug(f"returning frames: {_summarize_frames(result)}")
+        logdebug and logdebug(f"returning frames: {_summarize_frames(result)}")
         return result
 
     @overload
