@@ -330,13 +330,18 @@ class Reader(Sequence[VideoFrame]):
             if self.logger:
                 self.logger.debug(f"  decoded {frame}")
             self._get_frames_buffer.append(frame)
-            add_frame = (
-                count > wanted_distance
-                if wanted_distance is not None
-                else av_frame.time >= wanted_start_time - self.time_match_tolerance
-            )
-            if add_frame:
+
+            use_frame = False
+            if wanted_distance is not None:
+                use_frame = count > wanted_distance
+            elif wanted_start_time is not None:
+                use_frame = (
+                    av_frame.time >= wanted_start_time - self.time_match_tolerance
+                )
+
+            if use_frame:
                 result.append(frame)
+
             if self.decoder_index >= stop_index - 1:
                 break
 
