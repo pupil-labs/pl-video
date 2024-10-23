@@ -31,12 +31,6 @@ class Stats:
     decodes: int = 0
 
 
-@dataclass
-class PacketData:
-    pts: PTSArray
-    times: TimesArray
-
-
 class Reader(Sequence[VideoFrame]):
     def __init__(
         self,
