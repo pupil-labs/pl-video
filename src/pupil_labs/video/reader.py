@@ -303,7 +303,7 @@ class Reader(Sequence[VideoFrame]):
         logdebug = self.logger.debug if self.logger else None
         logwarning = self.logger.warning if self.logger else None
 
-        start_index, stop_index = self._calculate_absolute_indexes(key)
+        start_index, stop_index = index_key_to_indices(key, self)
         loginfo and loginfo(f"get_frames: [{start_index}:{stop_index}]")
 
         result = list[VideoFrame]()
