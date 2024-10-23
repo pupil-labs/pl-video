@@ -123,12 +123,14 @@ class Reader(Sequence[VideoFrame]):
 
     @cached_property
     def times(self) -> TimesArray:
+        """Return the presentation timestamps in float seconds from offset"""
         assert self._stream.time_base
         times = np.array(self._pts * float(self._stream.time_base), dtype=np.float64)
         return times
 
     @cached_property
     def _pts(self) -> PTSArray:
+        """Return the presentation timestamps in video.time_base"""
         assert self._stream.time_base
         if self.logger:
             self.logger.warning("demuxing all packets to get pts")
@@ -142,7 +144,7 @@ class Reader(Sequence[VideoFrame]):
             count += 1
             pts.append(packet.pts)
 
-        # TODO(dan): use .seek() instead?
+        # TODO(dan): can we use .seek() instead?
         self.decoder_index = None
         self.is_at_start = False
 
@@ -174,38 +176,62 @@ class Reader(Sequence[VideoFrame]):
 
     @cached_property
     def _decoder_frame_buffer(self) -> deque[av.video.frame.VideoFrame]:
+        """Returns a buffer that holds frames from the decoder"""
         return deque()
 
     @property
     def decoder(self) -> Iterator[av.video.frame.VideoFrame]:
+        """Yields decoded av frames from the video stream
+
+        This wraps the multithreaded av decoder in order to workaround the way pyav
+        returns packets/frames in that case; it delays returning the first frame
+        and yields multiple frames for the last decoded packet, which means:
+
+        - the decoded frame does not match the demuxed packet per iteration
+        - we would run into EOFError on the last few frames as demuxer has reached end
+
+        This is how the packets/frames look like coming out of av demux/decode:
+
+            packet.pts  packet   decoded           note
+            0           0        []                no frames
+            450         1
+                        ...
+                        14       []                no frames
+            6761        15       [0]               first frame received
+            7211        16       [1]               second frame received
+                        ...
+            None        30       [14, 15 ... 29]   rest of the frames
+
+        So in this generator we buffer every frame that was decoded and then on the
+        next iteration yield those buffered frames first. This ends up in a stream that
+        avoids the second issue.
+        """
         while self._decoder_frame_buffer:
+            # here we yield unconsumed frames from the previously packet decode
             frame = self._decoder_frame_buffer.popleft()
             if self.logger:
-                self.logger.debug(f"decoded overage {frame}")
+                self.logger.debug(f"yielding previous packet frame: {frame}")
             yield frame
 
         for packet in self._demuxer:
             try:
                 frames = cast(Iterator[av.video.frame.VideoFrame], packet.decode())
             except av.error.EOFError as e:
+                # this shouldn't happen but if it does, handle it
                 if self.logger:
                     self.logger.warning(f"reached end of file: {e}")
                 break
 
+            # add all the decoded frames to the buffer first
             self._decoder_frame_buffer.extend(frames)
+
+            # if we don't consume it entirely, will happen on next iteration of .decoder
             while self._decoder_frame_buffer:
                 frame = self._decoder_frame_buffer.popleft()
                 if self.logger:
-                    self.logger.debug(f"decoding current {frame}")
+                    self.logger.debug(f"yielding current packet frame: {frame}")
                 self.stats.decodes += 1
                 yield frame
-
-        while self._decoder_frame_buffer:
-            frame = self._decoder_frame_buffer.popleft()
-            if self.logger:
-                self.logger.debug(f"decoding after {frame}")
-            self.stats.decodes += 1
-            yield frame
 
     def _calculate_absolute_indexes(self, key: int | slice) -> tuple[int, int]:
         if isinstance(key, slice):
