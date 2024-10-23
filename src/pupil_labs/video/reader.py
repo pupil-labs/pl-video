@@ -296,15 +296,13 @@ class Reader(Sequence[VideoFrame]):
         #   - minimize long.nested.attribute.accesses
         #   - avoid formatting log messages unless logging needed
 
-        if self.logger:
-            self.logger.info(f"get_frames: [{start_index}:{stop_index}]")
-
-        loginfo = self.logger.info if self.logger else None
-        logdebug = self.logger.debug if self.logger else None
+        logbuffer = self.logger.debug if self.logger else None
+        logframes = self.logger.debug if self.logger else None
+        logother = self.logger.debug if self.logger else None
         logwarning = self.logger.warning if self.logger else None
 
         start_index, stop_index = index_key_to_indices(key, self)
-        loginfo and loginfo(f"get_frames: [{start_index}:{stop_index}]")
+        logother and logother(f"get_frames: [{start_index}:{stop_index}]")
 
         result = list[VideoFrame]()
 
@@ -312,7 +310,9 @@ class Reader(Sequence[VideoFrame]):
         # works out which frames in the current buffer we can use to fulfill the range
 
         if self._get_frames_buffer:
-            loginfo and loginfo(f"buffer: {_summarize_frames(self._get_frames_buffer)}")
+            logbuffer and logbuffer(
+                f"buffer: {_summarize_frames(self._get_frames_buffer)}"
+            )
 
             distance = start_index - self._get_frames_buffer[0].index
             buffer_contains_wanted_frames = distance >= 0 and distance <= len(
@@ -326,16 +326,16 @@ class Reader(Sequence[VideoFrame]):
 
             if result:
                 if len(result) == stop_index - start_index:
-                    logdebug and logdebug(
+                    logbuffer and logbuffer(
                         f"returning buffered frames: {_summarize_frames(result)}"
                     )
                     return result
                 else:
-                    logdebug and logdebug(
+                    logbuffer and logbuffer(
                         f"using buffered frames: {_summarize_frames(result)}"
                     )
             else:
-                logdebug and logdebug("no buffered frames found")
+                logbuffer and logbuffer("no buffered frames found")
 
             start_index = start_index + len(result)
 
@@ -370,8 +370,8 @@ class Reader(Sequence[VideoFrame]):
                 start_index_time = float(self.times[start_index])
                 self._seek(start_index_time)
 
-        if logdebug and start_index_distance is not None:
-            logdebug(
+        if logother and start_index_distance is not None:
+            logother(
                 f"iterating {start_index_distance} frames as within keyframe distance"
             )
 
@@ -399,7 +399,7 @@ class Reader(Sequence[VideoFrame]):
                 self.decoder_index += 1
 
             frame = VideoFrame(av_frame, self.decoder_index, av_frame.time)
-            logdebug and logdebug(f"  decoded {frame}")
+            logframes and logframes(f"  decoded {frame}")
 
             # we can be iterating frames that are before the requested range since
             # seeks will start at a keyframe, we buffer them as access might come later
@@ -421,7 +421,7 @@ class Reader(Sequence[VideoFrame]):
             if self.decoder_index >= stop_index - 1:
                 break
 
-        logdebug and logdebug(f"returning frames: {_summarize_frames(result)}")
+        logframes and logframes(f"returning frames: {_summarize_frames(result)}")
         return result
 
     @overload
