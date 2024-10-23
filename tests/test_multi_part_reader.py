@@ -77,6 +77,19 @@ def reader(multi_part_video_paths: list[str]) -> MultiPartReader:
     return MultiPartReader(multi_part_video_paths)
 
 
+def test_context_manager(multi_part_video_paths: list[str]) -> None:
+    with MultiPartReader(multi_part_video_paths) as reader:
+        assert reader is not None
+
+
+def test_init_args(multi_part_video_paths: list[str]) -> None:
+    with pytest.raises(TypeError):
+        MultiPartReader(multi_part_video_paths[0])  # type: ignore
+
+    with pytest.raises(ValueError):
+        MultiPartReader([])
+
+
 def test_iteration(reader: MultiPartReader, correct_data: PacketData) -> None:
     frame_count = 0
     for frame, expected_times in measure_fps(zip(reader, correct_data.times)):
@@ -148,6 +161,10 @@ def test_slices(
         assert frame.ts == correct_data.times[index]
 
 
+def test_times(reader: MultiPartReader, correct_data: PacketData):
+    assert np.allclose(reader.times, correct_data.times)
+
+
 def test_by_time(reader: MultiPartReader, correct_data: PacketData) -> None:
     for time in correct_data.times:
         if time > 1:
@@ -159,5 +176,4 @@ def test_by_time(reader: MultiPartReader, correct_data: PacketData) -> None:
         if time > 15:
             first_after_15s = time
             break
-    reader[381]
     assert reader.by_time[15.0:20.0][0].ts == first_after_15s  # type: ignore

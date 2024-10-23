@@ -103,7 +103,8 @@ class MultiPartReader(MultiSequence[VideoFrame]):
         self.close()
 
     def close(self) -> None:
-        raise NotImplementedError
+        for reader in self.sequences:
+            cast(Reader, reader).close()
 
     @property
     def width(self) -> int:
