@@ -7,6 +7,8 @@ import pytest
 
 from pupil_labs.video.multi_part_reader import MultiPartReader
 
+Slice = type("", (object,), {"__getitem__": lambda _, key: key})()
+
 
 @dataclass
 class PacketData:
@@ -85,5 +87,24 @@ def test_indexing(reader: MultiPartReader, correct_data: PacketData) -> None:
 
 
 def test_reverse_iteration(reader: MultiPartReader, correct_data: PacketData) -> None:
-    for i in reversed(range(len(correct_data))):
-        assert reader[i].time == correct_data.times[i]
+    for i in reversed(range(len(reader))):
+        assert reader[i].index == i
+
+
+@pytest.mark.parametrize(
+    "slice_arg",
+    [
+        Slice[:],
+        Slice[:100],
+        Slice[:-100],
+        Slice[-100:],
+        Slice[-100:],
+        Slice[-100:-50],
+        Slice[50:100],
+    ],
+)
+def test_slices(
+    reader: MultiPartReader, slice_arg: slice, correct_data: PacketData
+) -> None:
+    for frame, index in zip(reader[slice_arg], range(*slice_arg.indices(len(reader)))):
+        assert frame.index == index
