@@ -5,7 +5,7 @@ from functools import cached_property
 from logging import Logger, getLogger
 from pathlib import Path
 from types import TracebackType
-from typing import Sized, SupportsIndex, cast, overload
+from typing import Sized, cast, overload
 
 import av.container
 import av.error
@@ -34,7 +34,7 @@ class Stats:
     decodes: int = 0
 
 
-def index_key_to_indices(key: SupportsIndex | slice, obj: Sized) -> tuple[int, int]:
+def index_key_to_indices(key: int | slice, obj: Sized) -> tuple[int, int]:
     if isinstance(key, slice):
         start_index, stop_index = key.start, key.stop
     elif isinstance(key, int):
@@ -278,7 +278,7 @@ class Reader(ArrayLike[VideoFrame]):
     def _get_frames_buffer(self) -> deque[VideoFrame]:
         return deque(maxlen=self.gop_size)
 
-    def _get_frames(self, key: SupportsIndex | slice) -> ArrayLike[VideoFrame]:  # noqa: C901
+    def _get_frames(self, key: int | slice) -> ArrayLike[VideoFrame]:  # noqa: C901
         start_index, stop_index = index_key_to_indices(key, self)
         """Return frames for an index or slice
 
@@ -426,13 +426,11 @@ class Reader(ArrayLike[VideoFrame]):
         return result
 
     @overload
-    def __getitem__(self, key: SupportsIndex) -> VideoFrame: ...
+    def __getitem__(self, key: int) -> VideoFrame: ...
     @overload
     def __getitem__(self, key: slice) -> ArrayLike[VideoFrame]: ...
 
-    def __getitem__(
-        self, key: SupportsIndex | slice
-    ) -> VideoFrame | ArrayLike[VideoFrame]:
+    def __getitem__(self, key: int | slice) -> VideoFrame | ArrayLike[VideoFrame]:
         frames = self._get_frames(key)
         if isinstance(key, int):
             if not frames:

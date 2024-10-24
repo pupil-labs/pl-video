@@ -1,7 +1,7 @@
 from functools import cached_property
 from pathlib import Path
 from types import TracebackType
-from typing import Sequence, SupportsIndex, overload
+from typing import Sequence, overload
 
 import numpy as np
 
@@ -39,13 +39,11 @@ class MultiPartReader(MultiArrayLike[VideoFrame]):
         return np.concatenate(all_times)
 
     @overload
-    def __getitem__(self, key: SupportsIndex) -> VideoFrame: ...
+    def __getitem__(self, key: int) -> VideoFrame: ...
     @overload
     def __getitem__(self, key: slice) -> ArrayLike[VideoFrame]: ...
 
-    def __getitem__(
-        self, key: SupportsIndex | slice
-    ) -> VideoFrame | ArrayLike[VideoFrame]:
+    def __getitem__(self, key: int | slice) -> VideoFrame | ArrayLike[VideoFrame]:
         if isinstance(key, int):
             frame = super().__getitem__(key)
             frame.index = index_key_to_indices(key, self)[0]

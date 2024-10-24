@@ -1,4 +1,4 @@
-from typing import Iterator, Sequence, SupportsIndex, overload
+from typing import Iterator, Sequence, overload
 
 import numpy as np
 
@@ -12,11 +12,11 @@ class MultiArrayLike(ArrayLike[T]):
         self._start_indices = np.cumsum([0] + [len(part) for part in self.arrays])
 
     @overload
-    def __getitem__(self, key: SupportsIndex) -> T: ...
+    def __getitem__(self, key: int) -> T: ...
     @overload
     def __getitem__(self, key: slice) -> ArrayLike[T]: ...
 
-    def __getitem__(self, key: SupportsIndex | slice) -> T | ArrayLike[T]:
+    def __getitem__(self, key: int | slice) -> T | ArrayLike[T]:
         if isinstance(key, int):
             index = index_key_to_indices(key, self)[0]
             if index >= len(self):

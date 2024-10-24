@@ -1,5 +1,5 @@
 from collections.abc import Iterator
-from typing import SupportsIndex, TypeVar, overload
+from typing import TypeVar, overload
 
 from pupil_labs.video.array_like import ArrayLike
 
@@ -13,14 +13,12 @@ class FrameSlice(ArrayLike[FrameType]):
         self.start, self.stop, self.step = slice_value.indices(len(self.target))
 
     @overload
-    def __getitem__(self, key: SupportsIndex) -> FrameType: ...
+    def __getitem__(self, key: int) -> FrameType: ...
 
     @overload
     def __getitem__(self, key: slice) -> ArrayLike[FrameType]: ...
 
-    def __getitem__(
-        self, key: SupportsIndex | slice
-    ) -> FrameType | ArrayLike[FrameType]:
+    def __getitem__(self, key: int | slice) -> FrameType | ArrayLike[FrameType]:
         if isinstance(key, int):
             if key > len(self) - 1:
                 raise IndexError()
