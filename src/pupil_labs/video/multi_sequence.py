@@ -1,4 +1,4 @@
-from typing import SupportsIndex, overload
+from typing import Sequence, SupportsIndex, overload
 
 import numpy as np
 
@@ -9,9 +9,9 @@ from .sequence import ArrayLike, T
 
 
 class MultiArrayLike(ArrayLike[T]):
-    def __init__(self, sequences: list[ArrayLike[T]]) -> None:
-        self.sequences = sequences
-        self._start_indices = np.cumsum([0] + [len(part) for part in self.sequences])
+    def __init__(self, arrays: Sequence[ArrayLike[T]]) -> None:
+        self.arrays = arrays
+        self._start_indices = np.cumsum([0] + [len(part) for part in self.arrays])
 
     @overload
     def __getitem__(self, key: SupportsIndex) -> T: ...
@@ -28,9 +28,9 @@ class MultiArrayLike(ArrayLike[T]):
                 np.searchsorted(self._start_indices, index, side="right").item() - 1
             )
             part_key = int(index - self._start_indices[part_index])
-            return self.sequences[part_index][part_key]
+            return self.arrays[part_index][part_key]
         else:
             raise NotImplementedError
 
     def __len__(self) -> int:
-        return sum(len(part) for part in self.sequences)
+        return sum(len(part) for part in self.arrays)

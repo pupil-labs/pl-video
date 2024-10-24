@@ -1,7 +1,7 @@
 from functools import cached_property
 from pathlib import Path
 from types import TracebackType
-from typing import SupportsIndex, cast, overload
+from typing import Sequence, SupportsIndex, overload
 
 import numpy as np
 
@@ -14,26 +14,27 @@ from .video_frame import VideoFrame
 
 
 class MultiPartReader(MultiArrayLike[VideoFrame]):
-    def __init__(self, paths: list[str] | list[Path]):
+    def __init__(self, paths: Sequence[str] | list[Path]):
         if isinstance(paths, (str, Path)):
             raise TypeError("paths must be a list")
 
         if len(paths) < 1:
             raise ValueError("paths must not be empty")
 
+        # Declar that the ArrayLikes we are using in our MultiArrayLike are Readers
+        self.arrays: Sequence[Reader] = []
+
         video_readers = [Reader(path) for path in paths]
         self._start_times = np.cumsum(
             [0] + [reader.duration for reader in video_readers]
         )
-        sequences: list[ArrayLike] = list(video_readers)
-        super().__init__(sequences)
+        super().__init__(video_readers)
 
     @cached_property
     def times(self) -> TimesArray:
         all_times = []
-        for i in range(len(self.sequences)):
-            times = cast(Reader, self.sequences[i]).times
-            times = times.copy() + self._start_times[i]
+        for i in range(len(self.arrays)):
+            times = self.arrays[i].times + self._start_times[i]
             all_times.append(times)
         return np.concatenate(all_times)
 
@@ -75,15 +76,13 @@ class MultiPartReader(MultiArrayLike[VideoFrame]):
         self.close()
 
     def close(self) -> None:
-        for reader in self.sequences:
-            cast(Reader, reader).close()
+        for reader in self.arrays:
+            reader.close()
 
     @property
     def width(self) -> int:
-        reader = cast(Reader, self.sequences[0])
-        return reader.width
+        return self.arrays[0].width
 
     @property
     def height(self) -> int:
-        reader = cast(Reader, self.sequences[0])
-        return reader.height
+        return self.arrays[0].height
