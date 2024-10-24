@@ -2,7 +2,7 @@ import numpy as np
 import numpy.typing as npt
 import pytest
 
-from pupil_labs.video.multi_sequence import MultiArrayLike
+from pupil_labs.video.multi_array_like import MultiArrayLike
 
 Slice = type("", (object,), {"__getitem__": lambda _, key: key})()
 
