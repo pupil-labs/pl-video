@@ -1,8 +1,9 @@
-from collections.abc import Sequence
 from typing import Generic, TypeVar, overload
 
 import numpy as np
 import numpy.typing as npt
+
+from .sequence import ArrayLike
 
 IndexerValue = TypeVar("IndexerValue")
 IndexerKey = np.int64 | np.float64 | int | float
@@ -13,7 +14,7 @@ class Indexer(Generic[IndexerValue]):
     def __init__(
         self,
         keys: IndexerKeys,
-        values: Sequence[IndexerValue],
+        values: ArrayLike[IndexerValue],
     ):
         self.values = values
         self.keys = np.array(keys)
@@ -22,11 +23,11 @@ class Indexer(Generic[IndexerValue]):
     def __getitem__(self, key: IndexerKey) -> IndexerValue: ...
 
     @overload
-    def __getitem__(self, key: slice) -> list[IndexerValue]: ...
+    def __getitem__(self, key: slice) -> ArrayLike[IndexerValue]: ...
 
     def __getitem__(
         self, key: IndexerKey | slice
-    ) -> IndexerValue | Sequence[IndexerValue]:
+    ) -> IndexerValue | ArrayLike[IndexerValue]:
         if isinstance(key, int | float):
             index = np.searchsorted(self.keys, [key])[0]
             if self.keys[index] != key:

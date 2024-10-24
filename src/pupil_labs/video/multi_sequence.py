@@ -1,27 +1,24 @@
-from collections.abc import Sequence
-from dataclasses import dataclass
-from typing import Generic, TypeVar, overload
+from typing import SupportsIndex, overload
 
 import numpy as np
 
 from .reader import index_key_to_indices
+from .sequence import ArrayLike, T
 
-T = TypeVar("T")
+# T = TypeVar("T")
 
 
-@dataclass
-class MultiSequence(Generic[T], Sequence[T]):
-    sequences: Sequence[Sequence[T]]
-
-    def __post_init__(self) -> None:
+class MultiArrayLike(ArrayLike[T]):
+    def __init__(self, sequences: list[ArrayLike[T]]) -> None:
+        self.sequences = sequences
         self._start_indices = np.cumsum([0] + [len(part) for part in self.sequences])
 
     @overload
-    def __getitem__(self, key: int) -> T: ...
+    def __getitem__(self, key: SupportsIndex) -> T: ...
     @overload
-    def __getitem__(self, key: slice) -> Sequence[T]: ...
+    def __getitem__(self, key: slice) -> ArrayLike[T]: ...
 
-    def __getitem__(self, key: int | slice) -> T | Sequence[T]:
+    def __getitem__(self, key: SupportsIndex | slice) -> T | ArrayLike[T]:
         if isinstance(key, int):
             index = index_key_to_indices(key, self)[0]
             if index >= len(self):

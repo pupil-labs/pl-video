@@ -1,22 +1,26 @@
-from collections.abc import Sequence
-from typing import Generic, TypeVar, overload
+from collections.abc import Iterator
+from typing import SupportsIndex, TypeVar, overload
+
+from pupil_labs.video.sequence import ArrayLike
 
 FrameType = TypeVar("FrameType")
 
 
-class FrameSlice(Generic[FrameType], Sequence[FrameType]):
-    def __init__(self, target: Sequence[FrameType], slice_value: slice):
+class FrameSlice(ArrayLike[FrameType]):
+    def __init__(self, target: ArrayLike[FrameType], slice_value: slice):
         self.target = target
         self.slice = slice_value
         self.start, self.stop, self.step = slice_value.indices(len(self.target))
 
     @overload
-    def __getitem__(self, key: int) -> FrameType: ...
+    def __getitem__(self, key: SupportsIndex) -> FrameType: ...
 
     @overload
-    def __getitem__(self, key: slice) -> Sequence[FrameType]: ...
+    def __getitem__(self, key: slice) -> ArrayLike[FrameType]: ...
 
-    def __getitem__(self, key: int | slice) -> FrameType | Sequence[FrameType]:
+    def __getitem__(
+        self, key: SupportsIndex | slice
+    ) -> FrameType | ArrayLike[FrameType]:
         if isinstance(key, int):
             if key > len(self) - 1:
                 raise IndexError()
@@ -40,3 +44,7 @@ class FrameSlice(Generic[FrameType], Sequence[FrameType]):
             f"{'' if self.slice.stop is None else self.slice.stop}"
             "]"
         )
+
+    def __iter__(self) -> Iterator[FrameType]:
+        for i in range(len(self)):
+            yield self[i]

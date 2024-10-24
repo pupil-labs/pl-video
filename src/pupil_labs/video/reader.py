@@ -1,11 +1,11 @@
 from collections import deque
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator
 from dataclasses import dataclass
 from functools import cached_property
 from logging import Logger, getLogger
 from pathlib import Path
 from types import TracebackType
-from typing import Sized, cast, overload
+from typing import Sized, SupportsIndex, cast, overload
 
 import av.container
 import av.error
@@ -16,6 +16,7 @@ import numpy.typing as npt
 
 from pupil_labs.video.frameslice import FrameSlice
 from pupil_labs.video.indexer import Indexer
+from pupil_labs.video.sequence import ArrayLike
 from pupil_labs.video.video_frame import VideoFrame
 
 DEFAULT_LOGGER = getLogger(__name__)
@@ -33,7 +34,7 @@ class Stats:
     decodes: int = 0
 
 
-def index_key_to_indices(key: int | slice, obj: Sized) -> tuple[int, int]:
+def index_key_to_indices(key: SupportsIndex | slice, obj: Sized) -> tuple[int, int]:
     if isinstance(key, slice):
         start_index, stop_index = key.start, key.stop
     elif isinstance(key, int):
@@ -56,7 +57,7 @@ def index_key_to_indices(key: int | slice, obj: Sized) -> tuple[int, int]:
     return start_index, stop_index
 
 
-class Reader(Sequence[VideoFrame]):
+class Reader(ArrayLike[VideoFrame]):
     def __init__(
         self,
         source: Path | str,
@@ -277,7 +278,7 @@ class Reader(Sequence[VideoFrame]):
     def _get_frames_buffer(self) -> deque[VideoFrame]:
         return deque(maxlen=self.gop_size)
 
-    def _get_frames(self, key: int | slice) -> Sequence[VideoFrame]:  # noqa: C901
+    def _get_frames(self, key: SupportsIndex | slice) -> ArrayLike[VideoFrame]:  # noqa: C901
         start_index, stop_index = index_key_to_indices(key, self)
         """Return frames for an index or slice
 
@@ -425,11 +426,13 @@ class Reader(Sequence[VideoFrame]):
         return result
 
     @overload
-    def __getitem__(self, key: int) -> VideoFrame: ...
+    def __getitem__(self, key: SupportsIndex) -> VideoFrame: ...
     @overload
-    def __getitem__(self, key: slice) -> Sequence[VideoFrame]: ...
+    def __getitem__(self, key: slice) -> ArrayLike[VideoFrame]: ...
 
-    def __getitem__(self, key: int | slice) -> VideoFrame | Sequence[VideoFrame]:
+    def __getitem__(
+        self, key: SupportsIndex | slice
+    ) -> VideoFrame | ArrayLike[VideoFrame]:
         frames = self._get_frames(key)
         if isinstance(key, int):
             if not frames:
@@ -472,6 +475,10 @@ class Reader(Sequence[VideoFrame]):
     @property
     def height(self) -> int:
         return self._stream.height
+
+    def __iter__(self) -> Iterator[VideoFrame]:
+        for i in range(len(self)):
+            yield self[i]
 
 
 def _summarize_frames(result: list[VideoFrame] | deque[VideoFrame]) -> str:
