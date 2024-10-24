@@ -1,11 +1,9 @@
-from typing import Sequence, SupportsIndex, overload
+from typing import Iterator, Sequence, SupportsIndex, overload
 
 import numpy as np
 
 from .array_like import ArrayLike, T
 from .reader import index_key_to_indices
-
-# T = TypeVar("T")
 
 
 class MultiArrayLike(ArrayLike[T]):
@@ -34,3 +32,7 @@ class MultiArrayLike(ArrayLike[T]):
 
     def __len__(self) -> int:
         return sum(len(part) for part in self.arrays)
+
+    def __iter__(self) -> Iterator[T]:
+        for i in range(len(self)):
+            yield self[i]

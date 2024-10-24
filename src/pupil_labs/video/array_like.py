@@ -1,4 +1,4 @@
-from typing import Protocol, SupportsIndex, TypeVar, overload
+from typing import Iterator, Protocol, SupportsIndex, TypeVar, overload
 
 T = TypeVar("T", covariant=True)
 
@@ -10,3 +10,4 @@ class ArrayLike(Protocol[T]):
     @overload
     def __getitem__(self, key: slice, /) -> "ArrayLike[T]": ...
     def __getitem__(self, key: SupportsIndex | slice, /) -> T | "ArrayLike[T]": ...
+    def __iter__(self) -> Iterator[T]: ...
