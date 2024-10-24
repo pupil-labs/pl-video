@@ -14,9 +14,9 @@ import av.video
 import numpy as np
 import numpy.typing as npt
 
+from pupil_labs.video.array_like import ArrayLike
 from pupil_labs.video.frameslice import FrameSlice
 from pupil_labs.video.indexer import Indexer
-from pupil_labs.video.sequence import ArrayLike
 from pupil_labs.video.video_frame import VideoFrame
 
 DEFAULT_LOGGER = getLogger(__name__)

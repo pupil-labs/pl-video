@@ -2,8 +2,8 @@ from typing import Sequence, SupportsIndex, overload
 
 import numpy as np
 
+from .array_like import ArrayLike, T
 from .reader import index_key_to_indices
-from .sequence import ArrayLike, T
 
 # T = TypeVar("T")
 

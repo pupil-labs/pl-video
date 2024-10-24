@@ -5,11 +5,11 @@ from typing import Sequence, SupportsIndex, overload
 
 import numpy as np
 
+from .array_like import ArrayLike
 from .frameslice import FrameSlice
 from .indexer import Indexer
 from .multi_sequence import MultiArrayLike
 from .reader import Reader, TimesArray, index_key_to_indices
-from .sequence import ArrayLike
 from .video_frame import VideoFrame
 
 

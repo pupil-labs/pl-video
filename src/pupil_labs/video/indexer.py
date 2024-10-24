@@ -3,7 +3,7 @@ from typing import Generic, TypeVar, overload
 import numpy as np
 import numpy.typing as npt
 
-from .sequence import ArrayLike
+from .array_like import ArrayLike
 
 IndexerValue = TypeVar("IndexerValue")
 IndexerKey = np.int64 | np.float64 | int | float

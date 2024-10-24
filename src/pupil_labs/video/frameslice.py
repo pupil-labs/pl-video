@@ -1,7 +1,7 @@
 from collections.abc import Iterator
 from typing import SupportsIndex, TypeVar, overload
 
-from pupil_labs.video.sequence import ArrayLike
+from pupil_labs.video.array_like import ArrayLike
 
 FrameType = TypeVar("FrameType")
 
