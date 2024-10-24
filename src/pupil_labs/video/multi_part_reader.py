@@ -6,11 +6,11 @@ from typing import Sequence, overload
 import numpy as np
 
 from .array_like import ArrayLike
+from .frame import VideoFrame
 from .frameslice import FrameSlice
 from .indexer import Indexer
 from .multi_array_like import MultiArrayLike
 from .reader import Reader, TimesArray, index_key_to_indices
-from .video_frame import VideoFrame
 
 
 class MultiPartReader(MultiArrayLike[VideoFrame]):

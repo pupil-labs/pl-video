@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Any, Literal, cast
 
 import av
+import av.audio.frame
 import av.video.frame
 import numpy as np
 import numpy.typing as npt
@@ -11,12 +12,86 @@ PixelFormat = Literal["gray", "bgr24", "rgb24", "yuv420p", "yuv444p"]
 
 
 @dataclass
-class VideoFrame:
-    av_frame: av.video.frame.VideoFrame
-    index: int
-    ts: int | float
+class BaseFrame:
+    av_frame: av.audio.frame.AudioFrame | av.video.frame.VideoFrame
+    "the original av.AudioFrame or av.VideoFrame for this frame"
 
-    stream_type = "video"
+    time: float
+    "time of frame in float seconds, can be modified for downstream usage"
+
+    index: int
+    "index of frame, this can be modified for downstream usage"
+
+    _stream_index: int
+    "index in the stream, do not change this, it is used by internal buffers"
+
+    @property
+    def _stream_time(self) -> float:
+        assert self.av_frame.time is not None
+        return self.av_frame.time
+
+    @property
+    def ts(self) -> float:
+        return self.time
+
+    @ts.setter
+    def ts(self, time: float) -> None:
+        self.time = time
+
+    def __repr__(self) -> str:
+        return (
+            f"{self.__class__.__name__}("
+            + ", ".join(
+                f"{key}={value}"
+                for key, value in [
+                    ("pts", self.pts),
+                    ("index", self.index),
+                    ("time", f"{self.time:.5f}"),
+                    ("stream_time", f"{self._stream_time:.5f}"),
+                    ("format", f"{self.av_frame.format.name}"),
+                ]
+            )
+            + ")"
+        )
+
+    @property
+    def pts(self) -> int:
+        assert self.av_frame.pts is not None
+        return self.av_frame.pts
+
+
+@dataclass
+class AudioFrame(BaseFrame):
+    av_frame: av.audio.frame.AudioFrame
+    "the original av.AudioFrame for this frame"
+
+    def __repr__(self) -> str:
+        return (
+            f"{self.__class__.__name__}("
+            + ", ".join(
+                f"{key}={value}"
+                for key, value in [
+                    ("pts", self.pts),
+                    ("index", self.index),
+                    ("time", f"{self.time:.5f}"),
+                    ("stream_time", f"{self._stream_time:.5f}"),
+                    ("format", f"{self.av_frame.format.name}"),
+                    ("samples", f"{self.av_frame.sample_rate}"),
+                    ("rate", f"{self.av_frame.rate}Hz"),
+                ]
+            )
+            + ")"
+        )
+
+    def to_ndarray(self) -> npt.NDArray[np.float64]:
+        """Convert the audio samples of the AudioFrame to a numpy array."""
+        return cast(npt.NDArray[np.float64], self.av_frame.to_ndarray())
+
+
+@dataclass
+class VideoFrame(BaseFrame):
+    av_frame: av.video.frame.VideoFrame
+    "the original av.VideoFrame for this frame"
 
     def __getattr__(self, key: str) -> Any:
         return getattr(self.av_frame, key)
@@ -30,17 +105,13 @@ class VideoFrame:
                     ("pts", self.pts),
                     ("index", self.index),
                     ("time", f"{self.time:.5f}"),
+                    ("stream_time", f"{self._stream_time:.5f}"),
                     ("format", f"{self.av_frame.format.name}"),
                     ("res", f"{self.av_frame.width}x{self.av_frame.height}"),
-                    ("ts", f"{self.ts}"),
                 ]
             )
             + ")"
         )
-
-    @property
-    def pts(self) -> int | None:
-        return self.av_frame.pts
 
     @property
     def gray(self) -> npt.NDArray[np.uint8]:

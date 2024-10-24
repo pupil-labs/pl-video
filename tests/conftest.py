@@ -46,7 +46,7 @@ def pytest_generate_tests(metafunc: Any) -> None:
         TEST_DATA_PATH / "PI Scene Camera - audio off.mp4",
     ]
 
-    standard_videos = [main_video, *videos_with_audio, *videos_other]
+    standard_videos = [main_video, *videos_with_audio, *videos_other, *videos_mjpeg]
     if "num_frames" in metafunc.fixturenames:
         assert "video_path" in metafunc.fixturenames
 
