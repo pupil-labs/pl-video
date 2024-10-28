@@ -12,10 +12,16 @@ from pupil_labs.video.frame import PixelFormat
 
 @dataclass
 class Writer:
+    """Video writer for creating videos from image arrays."""
+
     path: str | Path
+    "Path to the video file to write to"
     lossless: bool = False
+    "If True, the video will be encoded lossless H264"
     rate: int = 30
+    "Frame rate of the output video"
     bit_rate: int = int(5e6)
+    "Bit rate of the output video"
 
     def __post_init__(self) -> None:
         self.container = av.open(self.path, "w")
@@ -36,6 +42,19 @@ class Writer:
         time: Optional[float] = None,
         pix_fmt: Optional[PixelFormat] = None,
     ) -> None:
+        """Write an image to the video.
+
+        Args:
+        ----
+            image: The image to write. Can have 1 or 3 channels.
+            time: The time of the frame in seconds.
+            pix_fmt: The pixel format of the image. If None, the pixel format will be
+                `gray` for 1-channel images and `bgr24` for 3-channel images.
+
+        """
+        if time is not None:
+            raise NotImplementedError("Time is not yet supported")
+
         if self.video_stream.encoded_frame_count == 0:  # type: ignore
             if image.ndim == 2:
                 height, width = image.shape

@@ -68,13 +68,15 @@ def index_key_to_indices(key: int | slice, obj: Sized) -> tuple[int, int, int]:
 
 
 class StreamReader(ArrayLike[ReaderFrameType]):
+    """Base class for reading video and audio streams from a file."""
+
     def __init__(
         self,
         source: Path | str,
         times: TimesArray | None = None,
         logger: Logger | None = None,
     ):
-        """Allows indexing and iterating over a video file.
+        """Creates a reader for a video file.
 
         Args:
         ----
@@ -572,6 +574,8 @@ class AudioReader(StreamReader[AudioFrame]):
 
 
 class Reader(StreamReader[VideoFrame]):
+    """Allows indexing and iterating over a video file."""
+
     @property
     def _stream(self) -> av.video.stream.VideoStream:
         return self._container.streams.video[0]

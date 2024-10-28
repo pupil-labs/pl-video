@@ -91,7 +91,7 @@ class AudioFrame(BaseFrame):
 @dataclass
 class VideoFrame(BaseFrame):
     av_frame: av.video.frame.VideoFrame
-    "the original av.VideoFrame for this frame"
+    "The original av.VideoFrame for this frame"
 
     def __getattr__(self, key: str) -> Any:
         return getattr(self.av_frame, key)
