@@ -178,7 +178,10 @@ def test_by_time(reader: MultiPartReader, correct_data: PacketData) -> None:
         if time > 15:
             first_after_15s = time
             break
-    assert reader.by_time[15.0:20.0][0].ts == first_after_15s  # type: ignore
+
+    assert np.allclose(reader.by_time[15.0:20.0][0].ts, first_after_15s)  # type: ignore
+    # Ensure multiple executions do not change the result
+    assert np.allclose(reader.by_time[15.0:20.0][0].ts, first_after_15s)  # type: ignore
 
 
 @pytest.fixture

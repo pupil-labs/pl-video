@@ -70,6 +70,7 @@ ignore = [
         "D213",
         # ends-in-period
         "D400",
+        "D401",
         # ends-in-punctuation
         "D415",
         ###

@@ -5,14 +5,7 @@ from functools import cached_property
 from logging import Logger, getLogger
 from pathlib import Path
 from types import TracebackType
-from typing import (
-    Any,
-    Self,
-    Sized,
-    TypeVar,
-    cast,
-    overload,
-)
+from typing import Any, Self, Sized, TypeVar, cast, overload
 
 import av.audio
 import av.container
@@ -81,14 +74,14 @@ class StreamReader(ArrayLike[ReaderFrameType]):
         times: TimesArray | None = None,
         logger: Logger | None = None,
     ):
-        """Reader reads video files providing a frame access api
+        """Allows indexing and iterating over a video file.
 
-        Arguments:
-        ---------
-            source:     Path to a video file, local or http://
-            times:      Timestamps for frames in video time seconds, eg. [0.033, 0.066]
-                        if not provided, will be calculated from container
-            logger:     Python logger to use, decreases performance
+        Args:
+        ----
+            source: Path to a video file. Can be a local path or an http-address.
+            times: Timestamps for frames in video time in seconds, eg. `[0.033, 0.066]`.
+                If not provided, times will be inferred from the container.
+            logger: Python logger to use, decreases performance.
 
         """
         self.source = source
@@ -109,7 +102,7 @@ class StreamReader(ArrayLike[ReaderFrameType]):
         self._indexed_frames_buffer = deque[BaseFrame](maxlen=1000)
         # TODO(dan): can we avoid it?
         # this forces loading the gopsize on initialization to set the buffer length
-        assert self.gop_size
+        assert self._gop_size
 
     def _get_logger(self, prefix: str) -> Any | Logger:
         if self._log:
@@ -125,19 +118,20 @@ class StreamReader(ArrayLike[ReaderFrameType]):
 
     @cached_property
     def times(self) -> TimesArray:
-        """A list of timestamps for the stream in float seconds since start
+        """Array of relative timestamps of the stream in seconds of video time.
 
-        If not .times was passed in, this will default to the timestamps from the video
+        If no `times` argument was provided, the values will be inferred from the video
+        container.
         """
         return self._container_times
 
     @cached_property
-    def gop_size(self) -> int:
+    def _gop_size(self) -> int:
         """Return the amount of frames per keyframe in a video"""
-        logger = self._get_logger(f"{Reader.gop_size.attrname}()")  # type: ignore
+        logger = self._get_logger(f"{Reader._gop_size.attrname}()")  # type: ignore
         logger and logger.info("loading gop_size")
         have_seen_keyframe_already = False
-        self.seek_to_pts(0)
+        self._seek_to_pts(0)
         count = 0
         for packet in self._demux():
             if packet.is_keyframe:
@@ -155,17 +149,17 @@ class StreamReader(ArrayLike[ReaderFrameType]):
         return gop_size
 
     @property
-    def stream(self) -> av.video.stream.VideoStream | av.audio.stream.AudioStream:
+    def _stream(self) -> av.video.stream.VideoStream | av.audio.stream.AudioStream:
         return self._container.streams.video[0]
 
-    def seek_to_pts(self, pts: int) -> bool:
-        logger = self._get_logger(f"{Reader.seek_to_pts.__name__}({pts})")
+    def _seek_to_pts(self, pts: int) -> bool:
+        logger = self._get_logger(f"{Reader._seek_to_pts.__name__}({pts})")
         if self._is_at_start and pts == 0:
             if logger:
                 logger.info("skipping seek, already at start")
             return False
 
-        self._container.seek(pts, stream=self.stream)
+        self._container.seek(pts, stream=self._stream)
         self.stats.seeks += 1
         logger and logger.warning(
             "seeked to: "
@@ -188,8 +182,8 @@ class StreamReader(ArrayLike[ReaderFrameType]):
         self._indexed_frames_buffer.clear()
         self._decoder_frame_buffer.clear()
 
-    def seek_to_index(self, index: int) -> bool:
-        logger = self._get_logger(f"{Reader.seek_to_index.__name__}({index})")
+    def _seek_to_index(self, index: int) -> bool:
+        logger = self._get_logger(f"{Reader._seek_to_index.__name__}({index})")
         logger and logger.info(f"seeking to index: {index}")
         pts = 0
         # TODO(dan): we can skip a seek if current decoder packet pts matches
@@ -203,10 +197,10 @@ class StreamReader(ArrayLike[ReaderFrameType]):
                 raise RuntimeError(
                     f"index not found in packets loaded so far:{index}"
                 ) from e
-        return self.seek_to_pts(pts)
+        return self._seek_to_pts(pts)
 
     @cached_property
-    def pts(self) -> list[int]:
+    def _pts(self) -> list[int]:
         """Return all presentation timestamps in video.time_base"""
         self._get_pts_till_index(-1)
         assert self._all_pts_are_loaded
@@ -227,7 +221,7 @@ class StreamReader(ArrayLike[ReaderFrameType]):
 
         if index == -1 or index >= len(self._partial_pts):
             last_pts = self._partial_pts[-1] if self._partial_pts else 0
-            self.seek_to_pts(last_pts)
+            self._seek_to_pts(last_pts)
             for packet in self._demux():
                 if packet.pts is None:
                     continue
@@ -246,6 +240,14 @@ class StreamReader(ArrayLike[ReaderFrameType]):
     def __getitem__(
         self, key: int | slice
     ) -> ReaderFrameType | ArrayLike[ReaderFrameType]:
+        """Index-based access to video frames.
+
+        `reader[5]` returns the fifth frame in the video.
+        `reader[5:10]` returns an `ArrayLike` of frames 5 to 10.
+
+        Large slices are returned as a lazy view, which avoids immediately loading all
+        frames into RAM.
+        """
         frames = self._get_frames(key)
         if isinstance(key, int):
             if not frames:
@@ -338,7 +340,7 @@ class StreamReader(ArrayLike[ReaderFrameType]):
                 log_other and log_other(f"distance to frame: {distance}, need seek")
 
         if need_seek:
-            self.seek_to_index(start)
+            self._seek_to_index(start)
 
         # DECODING LOGIC
         # Iterates over the av frame decoder, buffering the frames that come out
@@ -376,19 +378,20 @@ class StreamReader(ArrayLike[ReaderFrameType]):
         return result
 
     def __len__(self) -> int:
-        if self.stream.frames:
-            return self.stream.frames
-        return len(self.pts)
+        """Return the number of frames in the video"""
+        if self._stream.frames:
+            return self._stream.frames
+        return len(self._pts)
 
     def _demux(self) -> Iterator[av.packet.Packet]:
         """Demuxed packets from the stream"""
         logger = self._get_logger(f"{Reader._demux.__name__}()")
         logpackets = logger and logger.debug
         stream_time_base = (
-            float(self.stream.time_base) if self.stream.time_base is not None else 1
+            float(self._stream.time_base) if self._stream.time_base is not None else 1
         )
         prev_packet_pts = None
-        for packet in self._container.demux(self.stream):
+        for packet in self._container.demux(self._stream):
             is_new_pts = False
             if packet.pts is not None:
                 is_new_pts = (self._is_at_start and len(self._partial_pts) < 1) or (
@@ -494,20 +497,30 @@ class StreamReader(ArrayLike[ReaderFrameType]):
 
     @cached_property
     def _by_pts(self) -> Indexer[ReaderFrameType]:
-        return Indexer(np.array(self.pts), self)
+        return Indexer(np.array(self._pts), self)
 
     @cached_property
     def by_time(self) -> Indexer[ReaderFrameType]:
+        """Time-based access to video frames using relative video time seconds.
+
+        When accessing a specific key, e.g. `reader[t]`, a frame with this exact time
+        needs to exist, otherwise an `IndexError` is raised.
+        When acessing a slice, e.g. `reader[a:b]` an `ArrayLike` is returned such
+        that ` a <= frame.time < b` for every frame.
+
+        Large slices are returned as a lazy view, which avoids immediately loading all
+        frames into RAM.
+        """
         return Indexer(self.times, self)
 
     @cached_property
-    def by_container_time(self) -> Indexer[ReaderFrameType]:
+    def _by_container_time(self) -> Indexer[ReaderFrameType]:
         return Indexer(self._container_times, self)
 
     @cached_property
     def _container_times(self) -> TimesArray:
-        assert self.stream.time_base
-        return np.array(self.pts) * float(self.stream.time_base)
+        assert self._stream.time_base
+        return np.array(self._pts) * float(self._stream.time_base)
 
     def __enter__(self) -> Self:
         return self
@@ -525,21 +538,14 @@ class StreamReader(ArrayLike[ReaderFrameType]):
 
     @property
     def duration(self) -> float:
+        """Return the duration of the video in seconds.
+
+        If the duration is not available in the container, it will be calculated based
+        on the frames timestamps.
+        """
         if self._container.duration is None:
             return float(self.times[-1])
         return self._container.duration / av.time_base
-
-    @property
-    def width(self) -> int | None:
-        if self.stream.type == "video":
-            return self.stream.width
-        return None
-
-    @property
-    def height(self) -> int | None:
-        if self.stream.type == "video":
-            return self.stream.height
-        return None
 
     def __iter__(self) -> Iterator[ReaderFrameType]:
         # we iter like this to avoid calling len
@@ -561,17 +567,30 @@ def _frame_summary(result: list[ReaderFrameType] | deque[ReaderFrameType]) -> st
 
 class AudioReader(StreamReader[AudioFrame]):
     @property
-    def stream(self) -> av.audio.stream.AudioStream:
+    def _stream(self) -> av.audio.stream.AudioStream:
         return self._container.streams.audio[0]
 
 
 class Reader(StreamReader[VideoFrame]):
     @property
-    def stream(self) -> av.video.stream.VideoStream:
+    def _stream(self) -> av.video.stream.VideoStream:
         return self._container.streams.video[0]
 
     @property
     def audio(self) -> AudioReader | None:
+        """Returns an `AudioReader` providing access to the audio data of the video."""
         if not self._container.streams.audio:
             return None
         return AudioReader(self.source, logger=self.logger)
+
+    @property
+    def width(self) -> int | None:
+        """Width of the video in pixels."""
+        assert self._stream.type == "video"
+        return self._stream.width
+
+    @property
+    def height(self) -> int | None:
+        """Height of the video in pixels."""
+        assert self._stream.type == "video"
+        return self._stream.height

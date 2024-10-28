@@ -127,7 +127,7 @@ def reader(video_path: Path) -> Reader:
 
 
 def test_pts(reader: Reader, correct_data: PacketData) -> None:
-    assert list(reader.pts) == correct_data.video_pts
+    assert list(reader._pts) == correct_data.video_pts
 
 
 def test_iteration(reader: Reader, correct_data: PacketData) -> None:
@@ -192,10 +192,10 @@ def test_by_pts(reader: Reader, correct_data: PacketData) -> None:
 def test_accessing_pts_while_decoding(reader: Reader, correct_data: PacketData) -> None:
     for i, frame in enumerate(reader):
         if i < 100:
-            assert Reader.pts.attrname not in reader.__dict__  # type: ignore
+            assert Reader._pts.attrname not in reader.__dict__  # type: ignore
         else:
-            reader.pts  # noqa: B018
-            assert Reader.pts.attrname in reader.__dict__  # type: ignore
+            reader._pts  # noqa: B018
+            assert Reader._pts.attrname in reader.__dict__  # type: ignore
         assert frame.pts == correct_data.video_pts[i]
 
 
@@ -204,12 +204,12 @@ def test_accessing_times_while_decoding_by_frame_step(
 ) -> None:
     for i in range(0, len(correct_data.video_pts), 2):
         if i < 10:
-            assert Reader.pts.attrname not in reader.__dict__  # type: ignore
+            assert Reader._pts.attrname not in reader.__dict__  # type: ignore
             frame = reader[i]
             assert frame.pts == correct_data.video_pts[i]
         else:
-            reader.pts  # noqa: B018
-            assert Reader.pts.attrname in reader.__dict__  # type: ignore
+            reader._pts  # noqa: B018
+            assert Reader._pts.attrname in reader.__dict__  # type: ignore
             frame = reader[i]
             assert frame.pts == correct_data.video_pts[i]
 
@@ -227,15 +227,15 @@ def test_seeking_to_various_frames(
 def test_accessing_times_before_decoding(
     reader: Reader, correct_data: PacketData
 ) -> None:
-    assert Reader.pts.attrname not in reader.__dict__  # type: ignore
-    reader.pts  # noqa: B018
-    assert Reader.pts.attrname in reader.__dict__  # type: ignore
+    assert Reader._pts.attrname not in reader.__dict__  # type: ignore
+    reader._pts  # noqa: B018
+    assert Reader._pts.attrname in reader.__dict__  # type: ignore
     for i, frame in enumerate(reader):
         assert frame.pts == correct_data.video_pts[i]
 
 
 def test_gop_size(reader: Reader, correct_data: PacketData) -> None:
-    assert reader.gop_size == correct_data.gop_size
+    assert reader._gop_size == correct_data.gop_size
     assert reader.stats.seeks == 0
 
 
@@ -250,7 +250,7 @@ def test_gop_size_on_seeked_container_within_gop_size(
     assert reader.stats.seeks == 3  # one for gop
 
     # now check the gop_size
-    assert reader.gop_size == correct_data.gop_size
+    assert reader._gop_size == correct_data.gop_size
     assert reader.stats.seeks == 3
 
     assert reader[10].pts == correct_data.video_pts[10]
@@ -297,7 +297,7 @@ def test_seek_avoidance(reader: Reader, correct_data: PacketData) -> None:
     assert len(frames) == 10
     assert [f.pts for f in frames] == correct_data.video_pts[10:20]
 
-    if reader.stream.name == "mjpeg":
+    if reader._stream.name == "mjpeg":
         expected_seeks += 2
         assert reader.stats.decodes == 12
     else:
@@ -310,7 +310,7 @@ def test_seek_avoidance(reader: Reader, correct_data: PacketData) -> None:
     frame = reader[gop_size]
     assert frame.index == gop_size
 
-    if reader.stream.name == "mjpeg":
+    if reader._stream.name == "mjpeg":
         assert reader.stats.decodes == 13
         expected_seeks += 1
     else:
@@ -324,7 +324,7 @@ def test_seek_avoidance(reader: Reader, correct_data: PacketData) -> None:
     assert frame.index == gop_size * 2 - 1
     assert frame.pts == correct_data.video_pts[gop_size * 2 - 1]
     assert reader.stats.seeks == expected_seeks
-    if reader.stream.name == "mjpeg":
+    if reader._stream.name == "mjpeg":
         assert reader.stats.decodes == previous_decodes
     else:
         assert reader.stats.decodes > previous_decodes
@@ -403,7 +403,7 @@ def test_slices(reader: Reader, slice_arg: slice, correct_data: PacketData) -> N
 
 
 def test_consuming_lazy_frame_slice(reader: Reader, correct_data: PacketData) -> None:
-    if reader.stream.name == "mjpeg":
+    if reader._stream.name == "mjpeg":
         reader.lazy_frame_slice_limit = 30
         start = 10
         stop = 30
@@ -486,7 +486,7 @@ def test_access_frame_before_next_keyframe(
 
 
 def test_times_return_container_times(reader: Reader, correct_data: PacketData) -> None:
-    result_times = [frame._stream_time for frame in reader.by_container_time[1.0:5.0]]
+    result_times = [frame._stream_time for frame in reader._by_container_time[1.0:5.0]]
     expected_times = [time for time in correct_data.video_times if 1.0 <= time < 5.0]
     assert expected_times == result_times
 
@@ -513,7 +513,7 @@ def test_external_times_being_set(reader: Reader, correct_data: PacketData) -> N
 
 def test_by_container_times(reader: Reader, correct_data: PacketData) -> None:
     expected_times = [time for time in correct_data.video_times if 1.0 <= time < 5.0]
-    result_times = [frame._stream_time for frame in reader.by_container_time[1.0:5.0]]
+    result_times = [frame._stream_time for frame in reader._by_container_time[1.0:5.0]]
     assert expected_times == result_times
 
 
