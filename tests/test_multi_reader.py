@@ -7,7 +7,7 @@ import av
 import numpy as np
 import pytest
 
-from pupil_labs.video.multi_part_reader import MultiPartReader
+from pupil_labs.video.multi_reader import MultiReader
 
 from .utils import measure_fps
 
@@ -75,24 +75,23 @@ def correct_data(multi_part_video_paths: list[str]) -> PacketData:
 
 
 @pytest.fixture
-def reader(multi_part_video_paths: list[str]) -> MultiPartReader:
-    return MultiPartReader(multi_part_video_paths)
+def reader(multi_part_video_paths: list[str]) -> MultiReader:
+    return MultiReader(multi_part_video_paths)
 
 
 def test_context_manager(multi_part_video_paths: list[str]) -> None:
-    with MultiPartReader(multi_part_video_paths) as reader:
+    with MultiReader(multi_part_video_paths) as reader:
         assert reader is not None
 
 
 def test_init_args(multi_part_video_paths: list[str]) -> None:
-    with pytest.raises(TypeError):
-        MultiPartReader(multi_part_video_paths[0])  # type: ignore
+    assert MultiReader(multi_part_video_paths[0])
 
     with pytest.raises(ValueError):
-        MultiPartReader([])
+        MultiReader([])
 
 
-def test_iteration(reader: MultiPartReader, correct_data: PacketData) -> None:
+def test_iteration(reader: MultiReader, correct_data: PacketData) -> None:
     frame_count = 0
     for frame, expected_times in measure_fps(zip(reader, correct_data.times)):
         assert frame.ts == expected_times
@@ -102,7 +101,7 @@ def test_iteration(reader: MultiPartReader, correct_data: PacketData) -> None:
 
 
 def test_backward_iteration_from_end(
-    reader: MultiPartReader, correct_data: PacketData
+    reader: MultiReader, correct_data: PacketData
 ) -> None:
     total_keyframes = len(correct_data.keyframe_indices)
     assert total_keyframes <= len(correct_data.times)
@@ -112,7 +111,7 @@ def test_backward_iteration_from_end(
 
 
 def test_backward_iteration_from_N(
-    reader: MultiPartReader, correct_data: PacketData
+    reader: MultiReader, correct_data: PacketData
 ) -> None:
     total_keyframes = len(correct_data.keyframe_indices)
     assert total_keyframes <= len(correct_data.times)
@@ -122,7 +121,7 @@ def test_backward_iteration_from_N(
         assert reader[i].ts == correct_data.times[i]
 
 
-def test_by_idx(reader: MultiPartReader, correct_data: PacketData) -> None:
+def test_by_idx(reader: MultiReader, correct_data: PacketData) -> None:
     frame_count = 0
     for i, expected_time in measure_fps(enumerate(correct_data.times)):
         frame = reader[i]
@@ -132,7 +131,7 @@ def test_by_idx(reader: MultiPartReader, correct_data: PacketData) -> None:
     assert frame_count == len(correct_data.times)
 
 
-def test_arbitrary_index(reader: MultiPartReader, correct_data: PacketData) -> None:
+def test_arbitrary_index(reader: MultiReader, correct_data: PacketData) -> None:
     for i in [0, 1, 2, 10, 20, 59, 70, 150]:
         assert reader[i].ts == correct_data.times[i]
     for i in [-1, -10, -20, -150]:
@@ -156,18 +155,18 @@ def test_arbitrary_index(reader: MultiPartReader, correct_data: PacketData) -> N
     ],
 )
 def test_slices(
-    reader: MultiPartReader, slice_arg: slice, correct_data: PacketData
+    reader: MultiReader, slice_arg: slice, correct_data: PacketData
 ) -> None:
     for frame, index in zip(reader[slice_arg], range(*slice_arg.indices(len(reader)))):
         assert frame.index == index
         assert frame.ts == correct_data.times[index]
 
 
-def test_times(reader: MultiPartReader, correct_data: PacketData):
-    assert np.allclose(reader.times, correct_data.times)
+def test_times(reader: MultiReader, correct_data: PacketData) -> None:
+    assert np.allclose(reader.timestamps, correct_data.times)
 
 
-def test_by_time(reader: MultiPartReader, correct_data: PacketData) -> None:
+def test_by_time(reader: MultiReader, correct_data: PacketData) -> None:
     for time in correct_data.times:
         if time > 1:
             first_after_1s = time
@@ -192,8 +191,6 @@ def expected_size(multi_part_video_paths: list[str]) -> Tuple[int, int]:
         raise ValueError(f"Unknown video: {path}")
 
 
-def test_width_and_height(
-    reader: MultiPartReader, expected_size: Tuple[int, int]
-) -> None:
+def test_width_and_height(reader: MultiReader, expected_size: Tuple[int, int]) -> None:
     assert reader.width == expected_size[0]
     assert reader.height == expected_size[1]
