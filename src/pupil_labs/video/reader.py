@@ -5,7 +5,12 @@ from functools import cached_property
 from logging import Logger, getLogger
 from pathlib import Path
 from types import TracebackType
-from typing import Any, Self, Sized, TypeVar, cast, overload
+from typing import Any, Sized, TypeVar, cast, overload
+
+try:
+    from typing import Self
+except ImportError:
+    from typing_extensions import Self
 
 import av.audio
 import av.container
