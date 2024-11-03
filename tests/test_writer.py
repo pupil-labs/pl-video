@@ -32,3 +32,13 @@ def test_losslessness(tmp_path: Path) -> None:
         for img_written, frame in zip(written_images, reader):
             img_read = frame.to_ndarray(pixel_format="yuv444p")
             assert np.allclose(img_written, img_read)
+
+
+def test_reading_written_data(tmp_path: Path, main_video_path: Path):
+    with Writer(tmp_path / "out.mp4") as writer:
+        for frame in Reader(main_video_path):
+            writer.write(frame.bgr)
+
+    with Reader(tmp_path / "out.mp4") as reader:
+        for _ in reader:
+            pass
