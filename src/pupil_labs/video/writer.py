@@ -168,7 +168,7 @@ class Writer:
             av_frame.dts = None
             self._audio_frame_buffer.append(av_frame)
             av_frame.dts = av_frame.pts = int(
-                av_frame.time * self.video_stream.codec_context.time_base
+                av_frame.time / self.video_stream.codec_context.time_base
             )
 
         packets = self.audio_stream.encode(av_frame)
@@ -178,8 +178,9 @@ class Writer:
             packet_frame = self._audio_frame_buffer.popleft()
             if packet.pts < 0:
                 continue
-            packet.dts = packet.pts = packet_frame.pts
-            print(packet)
+            packet.dts = None
+            packet.pts = packet_frame.pts
+            # print(packet)
             self.container.mux([packet])
 
     def _encode_av_video_frame(
@@ -187,7 +188,7 @@ class Writer:
     ) -> None:
         if av_frame is not None:
             av_frame.dts = av_frame.pts = int(
-                av_frame.time * self.video_stream.codec_context.time_base
+                av_frame.time / self.video_stream.codec_context.time_base
             )
             self._video_frame_buffer.append(av_frame)
 
@@ -202,7 +203,7 @@ class Writer:
     def _encode_av_frame(
         self, av_frame: av.video.frame.VideoFrame | av.audio.frame.AudioFrame
     ) -> None:
-        print(av_frame)
+        # print(av_frame)
         if isinstance(av_frame, av.video.frame.VideoFrame):
             return self._encode_av_video_frame(av_frame)
         elif isinstance(av_frame, av.audio.frame.AudioFrame):
