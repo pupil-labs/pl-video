@@ -45,12 +45,10 @@ def index_key_to_absolute_indices(key: int | slice, obj: Sized) -> tuple[int, in
     This will avoid calling len() on the object unless necessary
 
     Args:
-    ----
         key(int | slice): an integer or slice
         obj(Sized): the object that the slice applies to (needed for negative indices)
 
     Examples:
-    --------
         >>> index_key_to_absolute_indices(-1, 'abc')
         2
         >>> index_key_to_absolute_indices(slice(-5, None), 'abcdefgh')
