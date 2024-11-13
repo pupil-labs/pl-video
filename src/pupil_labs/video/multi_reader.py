@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from fractions import Fraction
 from functools import cached_property
 from pathlib import Path
 from types import TracebackType
@@ -89,14 +88,14 @@ class MultiReader(Generic[ReaderFrameType]):
 
         reader_index = reader_slice.index
         reader = self.readers[reader_index]
-        frame: ReaderFrameType = reader[reader_slice.slice][0]
+        frame: ReaderFrameType = reader[reader_slice.slice.start]
         frame_index = frame.index + reader_slice.offset
 
         # if not reader._times_were_provided and reader_index > 0:
         #     frame_time = frame.time + self.reader_start_times[reader_index]
         frame_time = frame.time + self.reader_start_times[reader_index]
 
-        frame.av_frame.pts = int(frame_time / frame.av_frame.time_base)
+        # frame.av_frame.pts = int(frame_time / frame.av_frame.time_base)
         output_frame: ReaderFrameType = {
             VideoFrame: VideoFrame,
             AudioFrame: AudioFrame,
@@ -148,14 +147,6 @@ class MultiReader(Generic[ReaderFrameType]):
         for reader in self.readers:
             reader.close()
 
-    @property
-    def width(self) -> int | None:
-        return self.readers[0].width
-
-    @property
-    def height(self) -> int | None:
-        return self.readers[0].height
-
     def __iter__(self) -> Iterator[ReaderFrameType]:
         i = 0
         while True:
@@ -167,11 +158,4 @@ class MultiReader(Generic[ReaderFrameType]):
 
     @cached_property
     def audio(self) -> "MultiReader[AudioFrame]":
-        return MultiReader(*[
-            Reader(reader.source, logger=reader.logger, stream="audio")
-            for reader in self.readers
-        ])
-
-    @property
-    def rate(self) -> Fraction | int:
-        return self.readers[0].rate
+        return MultiReader(*[reader.audio for reader in self.readers])

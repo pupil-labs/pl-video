@@ -9,6 +9,8 @@ from typing import Optional, cast
 
 import av
 import av.audio
+import av.error
+import av.packet
 import av.stream
 import av.video
 import numpy as np
@@ -73,11 +75,24 @@ class Writer:
         time: Optional[float] = None,
     ) -> None:
         if isinstance(frame, (AudioFrame, VideoFrame)):
-            self._encode_av_frame(frame.av_frame)
+            av_frame = frame.av_frame
+            if time is None:
+                time = frame.time
         elif isinstance(frame, (av.audio.frame.AudioFrame, av.video.frame.VideoFrame)):
-            self._encode_av_frame(frame)
+            av_frame = frame
+            if time is None:
+                time = av_frame.time
         else:
             raise TypeError(f"invalid frame: {frame}")
+
+        if isinstance(frame, av.video.frame.VideoFrame):
+            time_base = self.video_stream.codec_context.time_base
+        else:
+            time_base = self.audio_stream.codec_context.time_base
+
+        assert time is not None
+        av_frame.pts = int(time / time_base)
+        self._encode_av_frame(av_frame)
 
     def write_image(
         self,
@@ -85,29 +100,13 @@ class Writer:
         time: Optional[float] = None,
         pix_fmt: Optional[PixelFormat] = None,
     ) -> None:
-        if self.video_stream.encoded_frame_count == 0:  # type: ignore
-            if image.ndim == 2:
-                height, width = image.shape
-            elif image.ndim == 3:
-                if image.shape[0] == 3:
-                    _, height, width = image.shape
-                else:
-                    height, width, _ = image.shape
-            else:
-                raise ValueError(f"Unsupported image shape: {image.shape}")
-
-            self.video_stream.codec_context.width = width
-            self.video_stream.codec_context.height = height
-
         if pix_fmt is None:
             pix_fmt = "bgr24"
             if image.ndim == 2:
                 pix_fmt = "gray"
 
         frame = av.VideoFrame.from_ndarray(image, str(pix_fmt))
-        if time is not None:
-            frame.pts = int(time / self.video_stream.codec_context.time_base)
-        self.write_frame(frame)
+        self.write_frame(frame, time=time)
 
     @cached_property
     def video_stream(self) -> av.video.stream.VideoStream:
@@ -132,7 +131,7 @@ class Writer:
         # multiplying by 10 and dividing by 8 seems to fix it (maybe it's a matter
         # issue of bits vs bytes somewhere in the encoder...)
         if stream.name == "h264_nvenc":
-            stream.codec_context.bit_rate = int(stream.codec_context.bit_rate * 1.25)
+            stream.codec_context.bit_rate = int(stream.codec_context.bit_rate / 1.25)
 
         # Move atom to start so less requests when loading video in web
         stream.codec_context.options["movflags"] = "faststart"
@@ -143,6 +142,9 @@ class Writer:
         # b frames can cause certain frames in chrome to not be seeked to correctly
         # https://bugs.chromium.org/p/chromium/issues/detail?id=66631
         stream.codec_context.options["bf"] = "0"
+
+        # group of pictures size
+        # stream.codec_context.options["g"] = str(self.group_of-picture_size)
 
         if self.lossless:
             self.video_stream.codec_context.pix_fmt = "yuv444p"
@@ -157,53 +159,52 @@ class Writer:
     def _video_frame_buffer(self) -> deque[av.video.frame.VideoFrame]:
         return deque()
 
+    @cached_property
+    def _audio_frame_buffer(self) -> deque[av.audio.frame.AudioFrame]:
+        return deque()
+
+    @cached_property
+    def _av_frame_buffer(
+        self,
+    ) -> deque[av.audio.frame.AudioFrame | av.video.frame.VideoFrame]:
+        return deque()
+
     def _encode_av_audio_frame(
         self, av_frame: av.audio.frame.AudioFrame | None
     ) -> None:
-        # if not hasattr(self, "first_frame"):
-        #     av_frame.pts = 0
-        #     self.first_frame = True
-        # TODO(dan): probably need to set av_frame.rate = self.rate here
-        if av_frame is not None:
-            av_frame.dts = None
-            self._audio_frame_buffer.append(av_frame)
-            av_frame.dts = av_frame.pts = int(
-                av_frame.time / self.video_stream.codec_context.time_base
-            )
-
-        packets = self.audio_stream.encode(av_frame)
-        for packet in packets:
-            if not self._audio_frame_buffer:
-                break
-            packet_frame = self._audio_frame_buffer.popleft()
-            if packet.pts < 0:
-                continue
-            packet.dts = None
-            packet.pts = packet_frame.pts
-            # print(packet)
-            self.container.mux([packet])
+        self._packet_buffer.extend(self.audio_stream.encode(av_frame))
+        self._mux_packets()
 
     def _encode_av_video_frame(
         self, av_frame: av.video.frame.VideoFrame | None
     ) -> None:
-        if av_frame is not None:
-            av_frame.dts = av_frame.pts = int(
-                av_frame.time / self.video_stream.codec_context.time_base
-            )
-            self._video_frame_buffer.append(av_frame)
+        if av_frame and self.video_stream.encoded_frame_count == 0:  # type: ignore
+            self.video_stream.codec_context.width = av_frame.width
+            self.video_stream.codec_context.height = av_frame.height
 
-        packets = self.video_stream.encode(av_frame)
-        for packet in packets:
-            if not self._video_frame_buffer:
-                break
-            packet_frame = self._video_frame_buffer.popleft()
-            packet.dts = packet.pts = packet_frame.pts
-            self.container.mux([packet])
+        self._packet_buffer.extend(self.video_stream.encode(av_frame))
+        self._mux_packets()
+
+    def _mux_packets(self, min_packets: int = 200) -> None:
+        if len(self._packet_buffer) < min_packets:
+            return
+
+        for packet in self._packet_buffer:
+            if packet.pts is not None:
+                packet.dts = packet.pts
+            # print(
+            #     packet.stream.type,
+            #     packet,
+            #     packet.time_base,
+            #     float(packet.time_base * packet.pts),
+            # )
+
+        self.container.mux(self._packet_buffer)
+        self._packet_buffer.clear()
 
     def _encode_av_frame(
         self, av_frame: av.video.frame.VideoFrame | av.audio.frame.AudioFrame
     ) -> None:
-        # print(av_frame)
         if isinstance(av_frame, av.video.frame.VideoFrame):
             return self._encode_av_video_frame(av_frame)
         elif isinstance(av_frame, av.audio.frame.AudioFrame):
@@ -221,7 +222,7 @@ class Writer:
         return stream
 
     @cached_property
-    def _audio_frame_buffer(self) -> deque[av.audio.frame.AudioFrame]:
+    def _packet_buffer(self) -> deque[av.packet.Packet]:
         return deque()
 
     def __enter__(self) -> "Writer":
@@ -242,4 +243,5 @@ class Writer:
         if self.container.streams.video:
             self._encode_av_video_frame(None)
 
+        self._mux_packets(0)
         self.container.close()

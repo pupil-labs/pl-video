@@ -46,8 +46,8 @@ class BaseFrame:
         ]
 
     @property
-    def pts(self) -> int:
-        assert self.av_frame.pts is not None
+    def pts(self) -> int | None:
+        # assert self.av_frame.pts is not None
         return self.av_frame.pts
 
 

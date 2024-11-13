@@ -119,8 +119,8 @@ class Reader(Generic[ReaderFrameType]):
 
         self.lazy_frame_slice_limit = LAZY_FRAME_SLICE_LIMIT
         self._times_were_provided = timestamps is not None
-        self.source = source
-        self.logger = logger or DEFAULT_LOGGER
+        self._source = source
+        self._logger = logger or DEFAULT_LOGGER
         self.stats = Stats()
 
         if not isinstance(stream, tuple):
@@ -140,6 +140,14 @@ class Reader(Generic[ReaderFrameType]):
         # TODO(dan): can we avoid it?
         # this forces loading the gopsize on initialization to set the buffer length
         assert self.gop_size
+
+    @property
+    def logger(self) -> Logger:
+        return self._logger
+
+    @property
+    def source(self) -> Any:
+        return self._source
 
     @property
     def filename(self) -> str:
