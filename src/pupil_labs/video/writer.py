@@ -31,11 +31,9 @@ def check_pyav_video_encoder_error(encoder: str) -> str:
     codec available will still fail with: libav.h264_nvenc: Cannot load libcuda.so.1
 
     Args:
-    ----
         encoder (string): eg. 'h264_nvenc'
 
     Returns:
-    -------
         Empty string if encoding worked, error string if it failed
 
 
@@ -59,6 +57,16 @@ class Writer:
         bit_rate: int = 2_000_000,
         logger: Logger | None = None,
     ) -> None:
+        """Video writer for creating videos from image arrays.
+
+        Args:
+            path: The path to write the video to.
+            lossless: If True, the video will be encoded in lossless H264.
+            fps: The desired framerate of the video.
+            bit_rate: The desired bit rate of the video.
+            logger: Python logger to use. Decreases performance.
+
+        """
         self.path = path
         self.lossless = lossless
         self.fps = fps
@@ -100,6 +108,15 @@ class Writer:
         time: Optional[float] = None,
         pix_fmt: Optional[PixelFormat] = None,
     ) -> None:
+        """Write an image to the video.
+
+        Args:
+            image: The image to write. Can have 1 or 3 channels.
+            time: The time of the frame in seconds.
+            pix_fmt: The pixel format of the image. If None, the pixel format will be
+                `gray` for 1-channel images and `bgr24` for 3-channel images.
+
+        """
         if pix_fmt is None:
             pix_fmt = "bgr24"
             if image.ndim == 2:

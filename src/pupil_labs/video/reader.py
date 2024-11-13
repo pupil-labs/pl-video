@@ -101,19 +101,16 @@ class Reader(Generic[ReaderFrameType]):
         stream: Literal["audio", "video"]
         | tuple[Literal["audio", "video"], int] = "video",
     ):
-        """Reader reads video files providing a frame access api
+        """Create a reader for a video file.
 
         Args:
-        ----
-            source: Path to a video file, local or http://
-
-            timestamps:
-                Timestamps for frames in video time seconds, eg. [0.033, 0.066]
-                if not provided, will be calculated from container
-
-            logger: Python logger to use, decreases performance
-
-            stream: "video" or "audio"
+            source: Path to a video file. Can be a local path or an http-address.
+            timestamps: Timestamps for frames in video time in seconds, eg.
+                `[0.033, 0.066]`. If not provided, times will be inferred from the
+                container.
+            logger: Python logger to use. Decreases performance.
+            stream: The stream to read from, either "audio", "video", or a tuple
+                containing both.
 
         """
         self._timestamps: Timestamps | None = None
@@ -150,10 +147,12 @@ class Reader(Generic[ReaderFrameType]):
 
     @property
     def source(self) -> Any:
+        """Return the source of the video"""
         return self._source
 
     @property
     def filename(self) -> str:
+        """Return the filename of the video"""
         return str(self.source).split("/")[-1]
 
     def _get_logger(self, prefix: str) -> Any | Logger:
@@ -173,9 +172,10 @@ class Reader(Generic[ReaderFrameType]):
 
     @property
     def timestamps(self) -> Timestamps:
-        """A list of timestamps for the stream
+        """Array of timestamps of the stream in seconds of video time.
 
-        If timestamps were not passed in, this will default to the timestamps from video
+        If no `timestamps` argument was provided when creating the Reader, realtive
+        video timestamps will be inferred from the video container.
         """
         if self._timestamps is None:
             return self._stream_timestamps
@@ -196,7 +196,7 @@ class Reader(Generic[ReaderFrameType]):
         logger = self._get_logger(f"{Reader.gop_size.attrname}()")  # type: ignore
         logger and logger.info("loading gop_size")
         have_seen_keyframe_already = False
-        self.seek_to_pts(0)
+        self._seek_to_pts(0)
         count = 0
         for packet in self._demux():
             if packet.is_keyframe:
@@ -238,8 +238,8 @@ class Reader(Generic[ReaderFrameType]):
         self._indexed_frames_buffer.clear()
         self._decoder_frame_buffer.clear()
 
-    def seek_to_pts(self, pts: int) -> bool:
-        logger = self._get_logger(f"{Reader.seek_to_pts.__name__}({pts})")
+    def _seek_to_pts(self, pts: int) -> bool:
+        logger = self._get_logger(f"{Reader._seek_to_pts.__name__}({pts})")
         if self._is_at_start and pts == 0:
             logger and logger.info("skipping seek, already at start")
             return False
@@ -262,8 +262,8 @@ class Reader(Generic[ReaderFrameType]):
 
         return True
 
-    def seek_to_time(self, time: float) -> bool:
-        logger = self._get_logger(f"{Reader.seek_to_index.__name__}({time})")
+    def _seek_to_time(self, time: float) -> bool:
+        logger = self._get_logger(f"{Reader._seek_to_index.__name__}({time})")
         logger and logger.info(f"seeking to time: {time}")
         if self._times_were_provided:
             index = max(bisect_right(self.timestamps, time) - 1, 0)
@@ -274,8 +274,8 @@ class Reader(Generic[ReaderFrameType]):
         self._reset_decoder()
         return True
 
-    def seek_to_index(self, index: int) -> bool:
-        logger = self._get_logger(f"{Reader.seek_to_index.__name__}({index})")
+    def _seek_to_index(self, index: int) -> bool:
+        logger = self._get_logger(f"{Reader._seek_to_index.__name__}({index})")
         logger and logger.info(f"seeking to index: {index}")
         pts = 0
         # TODO(dan): we can skip a seek if current decoder packet pts matches
@@ -289,11 +289,11 @@ class Reader(Generic[ReaderFrameType]):
                 raise RuntimeError(
                     f"index not found in packets loaded so far:{index}"
                 ) from e
-        return self.seek_to_pts(pts)
+        return self._seek_to_pts(pts)
 
     @cached_property
     def pts(self) -> list[int]:
-        """Return all presentation timestamps in video.time_base"""
+        """Return all presentation timestamps in `video.time_base`"""
         self._load_packets_till_index(-1)
         assert self._all_pts_are_loaded
         return self._partial_pts
@@ -315,7 +315,7 @@ class Reader(Generic[ReaderFrameType]):
 
         if index == -1 or index >= len(self._partial_pts):
             last_pts = self._partial_pts[-1] if self._partial_pts else 0
-            self.seek_to_pts(last_pts)
+            self._seek_to_pts(last_pts)
             for packet in self._demux():
                 if packet.pts is None:
                     continue
@@ -336,6 +336,14 @@ class Reader(Generic[ReaderFrameType]):
     def __getitem__(
         self, key: int | slice
     ) -> ReaderFrameType | FrameSlice[ReaderFrameType] | list[ReaderFrameType]:
+        """Index-based access to video frames.
+
+        `reader[5]` returns the fifth frame in the video.
+        `reader[5:10]` returns an `ArrayLike` of frames 5 to 10.
+
+        Large slices are returned as a lazy view, which avoids immediately loading all
+        frames into RAM.
+        """
         frames = self._get_frames_by_indices(key)
         if isinstance(key, slice):
             return frames
@@ -440,7 +448,7 @@ class Reader(Generic[ReaderFrameType]):
                 log_other and log_other(f"distance to frame: {distance}, need seek")
 
         if need_seek:
-            self.seek_to_index(start)
+            self._seek_to_index(start)
 
         # DECODING LOGIC
         # Iterates over the av frame decoder, buffering the frames that come out
@@ -509,6 +517,7 @@ class Reader(Generic[ReaderFrameType]):
                 self.logger.warning(f"unknown frame type found:{av_frame}")
 
     def __len__(self) -> int:
+        """Return the number of frames in the video"""
         if self._stream.frames:
             return self._stream.frames
         return len(self.pts)
@@ -635,10 +644,32 @@ class Reader(Generic[ReaderFrameType]):
 
     @cached_property
     def by_timestamp(self) -> Indexer[ReaderFrameType]:
+        """Time-based access to video frames using timestamps.
+
+        If no timestamps were provided, this method is equal to `by_container_time`.
+
+        When accessing a specific key, e.g. `reader[t]`, a frame with this exact
+        timestamp needs to exist, otherwise an `IndexError` is raised.
+        When acessing a slice, e.g. `reader[a:b]` an `ArrayLike` is returned such
+        that ` a <= frame.time < b` for every frame.
+
+        Large slices are returned as a lazy view, which avoids immediately loading all
+        frames into RAM.
+        """
         return Indexer(self.timestamps, self)
 
     @cached_property
     def by_container_time(self) -> Indexer[ReaderFrameType]:
+        """Time-based access to video frames using relative video time seconds.
+
+        When accessing a specific key, e.g. `reader[t]`, a frame with this exact time
+        needs to exist, otherwise an `IndexError` is raised.
+        When acessing a slice, e.g. `reader[a:b]` an `ArrayLike` is returned such
+        that ` a <= frame.time < b` for every frame.
+
+        Large slices are returned as a lazy view, which avoids immediately loading all
+        frames into RAM.
+        """
         return Indexer(self._stream_timestamps, self)
 
     @cached_property
@@ -662,6 +693,7 @@ class Reader(Generic[ReaderFrameType]):
 
     @property
     def average_rate(self) -> float:
+        """Return the average framerate of the video in Hz."""
         if self._times_were_provided or not self._stream.average_rate:
             return float(1 / np.mean(np.diff(self.timestamps)))
         return float(self._stream.average_rate)
@@ -682,7 +714,11 @@ class Reader(Generic[ReaderFrameType]):
 
     @property
     def duration(self) -> float:
-        """Duration from timestamps"""
+        """Return the duration of the video in seconds.
+
+        If the duration is not available in the container, it will be calculated based
+        on the frames timestamps.
+        """
         if self._times_were_provided or not self._stream.duration:
             last_frame_duration = 1.0 / self.average_rate
             return float(self.timestamps[-1] - self.timestamps[0]) + last_frame_duration
@@ -690,12 +726,14 @@ class Reader(Generic[ReaderFrameType]):
 
     @property
     def width(self) -> int | None:
+        """Width of the video in pixels."""
         if self._stream.type == "video":
             return self._stream.width
         return None
 
     @property
     def height(self) -> int | None:
+        """Height of the video in pixels."""
         if self._stream.type == "video":
             return self._stream.height
         return None
@@ -712,12 +750,14 @@ class Reader(Generic[ReaderFrameType]):
 
     @cached_property
     def audio(self) -> "Reader[AudioFrame] | None":
+        """Returns an `Reader` providing access to the audio data of the video only."""
         if not self._container.streams.audio:
             return None
         return Reader(self.source, logger=self.logger, stream="audio")
 
     @cached_property
     def video(self) -> "Reader[VideoFrame] | None":
+        """Returns an `Reader` providing access to the video data of the video only."""
         if not self._container.streams.video:
             return None
         return Reader(self.source, logger=self.logger, stream="video")
@@ -732,4 +772,5 @@ class Reader(Generic[ReaderFrameType]):
 
     @property
     def rate(self) -> Fraction | int:
+        """Return the framerate of the video in Hz."""
         return self._stream.rate
