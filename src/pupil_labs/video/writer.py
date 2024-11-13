@@ -90,8 +90,8 @@ class Writer:
         else:
             time_base = self.audio_stream.codec_context.time_base
 
-        assert time is not None
-        av_frame.pts = int(time / time_base)
+        if time is not None:
+            av_frame.pts = int(time / time_base)
         self._encode_av_frame(av_frame)
 
     def write_image(
@@ -122,7 +122,6 @@ class Writer:
         else:
             stream = self.container.add_stream("h264_nvenc")
 
-        stream = cast(av.video.stream.VideoStream, stream)
         stream.codec_context.time_base = Fraction(1, 90000)
         stream.codec_context.bit_rate = self.bit_rate
         stream.codec_context.pix_fmt = "yuv420p"
@@ -147,8 +146,8 @@ class Writer:
         # stream.codec_context.options["g"] = str(self.group_of-picture_size)
 
         if self.lossless:
-            self.video_stream.codec_context.pix_fmt = "yuv444p"
-            self.video_stream.codec_context.options.update({
+            stream.codec_context.pix_fmt = "yuv444p"
+            stream.codec_context.options.update({
                 "qp": "0",
                 "preset:v": "p7",
                 "tune:v": "lossless",

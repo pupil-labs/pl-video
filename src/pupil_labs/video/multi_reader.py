@@ -108,7 +108,7 @@ class MultiReader(Generic[ReaderFrameType]):
         return output_frame
 
     @cached_property
-    def reader_start_times(self) -> list[float]:
+    def reader_start_times(self) -> Timestamps:
         return np.cumsum([[0] + [reader.duration for reader in self.readers]])
 
     def reader_slices_for_key(self, key: int | slice) -> Iterator[MultiReaderSlice]:
@@ -159,3 +159,11 @@ class MultiReader(Generic[ReaderFrameType]):
     @cached_property
     def audio(self) -> "MultiReader[AudioFrame]":
         return MultiReader(*[reader.audio for reader in self.readers])
+
+    @property
+    def width(self) -> int | None:
+        return self.readers[0].width
+
+    @property
+    def height(self) -> int | None:
+        return self.readers[0].height

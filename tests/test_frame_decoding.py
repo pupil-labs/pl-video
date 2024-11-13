@@ -18,6 +18,9 @@ from .utils import measure_fps
     ],
 )
 def test_decode(video_path: Path, pixel_format: PixelFormat) -> None:
+    if video_path.suffix == ".mjpeg" and pixel_format is None:
+        pytest.xfail("mjpeg decoding does not support pixel_format=None")
+
     reader = Reader(video_path)
     for frame in measure_fps(reader):
         frame.to_ndarray(pixel_format=pixel_format)

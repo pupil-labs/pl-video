@@ -70,7 +70,7 @@ def correct_data(multi_part_video_paths: list[str]) -> PacketData:
                 keyframe_indices.append(index)
             index += 1
 
-        times_bias += container.duration / av.time_base
+        times_bias += float(stream.duration * stream.time_base)
     return PacketData(times=times, keyframe_indices=keyframe_indices)
 
 

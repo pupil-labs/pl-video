@@ -163,7 +163,7 @@ class Reader(Generic[ReaderFrameType]):
 
     @cached_property
     def _container(self) -> av.container.input.InputContainer:
-        container = av.open(self.source)
+        container = av.open(self.source)  # type: av.container.input.InputContainer
         for stream in container.streams.video:
             stream.thread_type = "FRAME"
         return container
@@ -481,6 +481,7 @@ class Reader(Generic[ReaderFrameType]):
                     self._current_decoder_index = int(frame_index)
 
             if isinstance(av_frame, av.video.frame.VideoFrame):
+                assert self._current_decoder_index is not None
                 yield cast(
                     ReaderFrameType,
                     VideoFrame(
@@ -491,6 +492,7 @@ class Reader(Generic[ReaderFrameType]):
                     ),
                 )
             elif isinstance(av_frame, av.audio.frame.AudioFrame):
+                assert self._current_decoder_index is not None
                 yield cast(
                     ReaderFrameType,
                     AudioFrame(
