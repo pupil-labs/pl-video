@@ -158,7 +158,12 @@ class MultiReader(Generic[ReaderFrameType]):
 
     @cached_property
     def audio(self) -> "MultiReader[AudioFrame]":
-        return MultiReader(*[reader.audio for reader in self.readers])
+        audio_readers = []
+        for reader in self.readers:
+            if reader.audio is None:
+                raise ValueError("not all readers have audio")
+            audio_readers.append(reader.audio)
+        return MultiReader(*audio_readers)
 
     @property
     def width(self) -> int | None:

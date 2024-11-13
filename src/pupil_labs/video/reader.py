@@ -13,11 +13,14 @@ from typing import (
     Generic,
     Literal,
     MutableMapping,
-    Self,
     cast,
     overload,
 )
 
+try:
+    from typing import Self
+except ImportError:
+    from typing_extensions import Self
 import av.audio
 import av.container
 import av.error

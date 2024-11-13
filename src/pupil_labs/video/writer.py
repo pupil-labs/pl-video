@@ -120,7 +120,8 @@ class Writer:
             )
             stream = self.container.add_stream("h264")
         else:
-            stream = self.container.add_stream("h264_nvenc")
+            stream = self.container.add_stream("h264_nvenc")  # type: ignore
+            # TODO: why does mypy fail the above check?
 
         stream.codec_context.time_base = Fraction(1, 90000)
         stream.codec_context.bit_rate = self.bit_rate
