@@ -1,5 +1,7 @@
 fix = true
 
+exclude = ["examples/flexible_video_access.py"]
+
 [lint]
 extend-select = [
         # flake8-builtins

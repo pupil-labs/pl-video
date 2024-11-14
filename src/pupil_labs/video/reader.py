@@ -771,6 +771,9 @@ class Reader(Generic[ReaderFrameType]):
         return str(indices)
 
     @property
-    def rate(self) -> Fraction | int:
+    def rate(self) -> Fraction | int | None:
         """Return the framerate of the video in Hz."""
-        return self._stream.rate
+        try:
+            return self._stream.rate
+        except AttributeError:
+            return None
