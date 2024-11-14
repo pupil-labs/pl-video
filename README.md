@@ -22,3 +22,39 @@ Features include:
 ```bash
 pip install pupil_labs_video
 ```
+
+## Quick Start
+
+You can open a video file and read frames like this:
+
+```python
+import pupil_labs.video as plv
+
+with plv.Reader(video_path) as video:
+    # Iterate through video frames
+    for frame in video:
+        # Convert video frame to BGR array
+        img = frame.bgr
+
+    # Index individual frames or slices
+    first_frame = video[0]
+    last_frame = video[-1]
+    frames = video[10:20]
+
+    # Index frames by time
+    ts = video[10].time
+    frame = video.by_timestamp[ts]
+    frames = video.by_timestamp[ts : ts + 10]
+```
+
+You can write video files like this:
+
+```python
+import pupil_labs.video as plv
+
+with (plv.Writer(out_path) as writer):
+    for img in images:
+        writer.write_image(img)
+```
+
+To learn more see the documentation (to be linked) and examples (to be linked).
