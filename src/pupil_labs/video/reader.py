@@ -176,7 +176,10 @@ class Reader(Generic[ReaderFrameType]):
 
     @property
     def container_timestamps(self) -> PTSArray:
-        """Array of timestamps of the stream in seconds of video time.
+        """Frame timestamps in container time.
+
+        Container time is measured in seconds relative to begining of the video.
+        Accordingly, the first frame typically has timestamp `0.0`.
 
         If these values were not provided when creating the Reader, they will be
         inferred from the video container.
@@ -655,7 +658,8 @@ class Reader(Generic[ReaderFrameType]):
     def by_container_timestamps(self) -> Indexer[ReaderFrameType]:
         """Time-based access to video frames using container timestamps.
 
-        Container timestamps are relative timestamps measured in seconds.
+        Container time is measured in seconds relative to begining of the video.
+        Accordingly, the first frame typically has timestamp `0.0`.
 
         When accessing a specific key, e.g. `reader[t]`, a frame with this exact
         timestamp needs to exist, otherwise an `IndexError` is raised.
