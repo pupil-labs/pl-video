@@ -514,40 +514,46 @@ def test_access_frame_before_next_keyframe(
 def test_times_return_container_times(
     reader: Reader[VideoFrame], correct_data: PacketData
 ) -> None:
-    result_times = [frame.av_frame.time for frame in reader.by_container_time[1.0:5.0]]
+    result_times = [
+        frame.av_frame.time for frame in reader.by_container_timestamps[1.0:5.0]
+    ]
     expected_times = [time for time in correct_data.video_times if 1.0 <= time < 5.0]
     assert expected_times == result_times
 
 
 def test_external_times(video_path: str, correct_data: PacketData) -> None:
     external_timestamps = [i * 0.1 for i in range(len(correct_data.video_pts))]
-    reader = Reader(source=video_path, timestamps=external_timestamps)
-    assert reader.timestamps == external_timestamps
+    reader = Reader(
+        source=video_path, pre_loaded_container_timestamps=external_timestamps
+    )
+    assert np.all(reader.container_timestamps == external_timestamps)
 
-    result_frames = reader.by_timestamp[1.0:5.0]
+    result_frames = reader.by_container_timestamps[1.0:5.0]
     result_timestamps = [frame.time for frame in result_frames]
     expected_times = [time for time in external_timestamps if 1.0 <= time < 5.0]
-    assert expected_times == result_timestamps
+    assert np.all(expected_times == result_timestamps)
 
 
 def test_external_times_being_set(
     reader: Reader[VideoFrame], correct_data: PacketData
 ) -> None:
     external_timestamps = [i * 0.1 for i in range(len(correct_data.video_pts))]
-    reader.timestamps = external_timestamps
-    assert reader.timestamps == external_timestamps
+    reader.container_timestamps = external_timestamps
+    assert np.all(reader.container_timestamps == external_timestamps)
 
-    result_frames = reader.by_timestamp[1.0:5.0]
+    result_frames = reader.by_container_timestamps[1.0:5.0]
     result_times = [frame.time for frame in result_frames]
     expected_times = [time for time in external_timestamps if 1.0 <= time < 5.0]
-    assert expected_times == result_times
+    assert np.all(expected_times == result_times)
 
 
 def test_by_container_times(
     reader: Reader[VideoFrame], correct_data: PacketData
 ) -> None:
     expected_times = [time for time in correct_data.video_times if 1.0 <= time < 5.0]
-    result_times = [frame.av_frame.time for frame in reader.by_container_time[1.0:5.0]]
+    result_times = [
+        frame.av_frame.time for frame in reader.by_container_timestamps[1.0:5.0]
+    ]
     assert expected_times == result_times
 
 

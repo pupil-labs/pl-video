@@ -13,6 +13,7 @@ from typing import (
     Generic,
     Literal,
     MutableMapping,
+    Optional,
     cast,
     overload,
 )
@@ -38,12 +39,8 @@ from pupil_labs.video.indexing import Indexer, index_key_to_absolute_indices
 DEFAULT_LOGGER = getLogger(__name__)
 AVFrame = av.video.frame.VideoFrame | av.audio.frame.AudioFrame
 
-
-NPTimestamps = npt.NDArray[np.int64 | np.float64]
-"Numpy Timestamps for frames in video"
-
-Timestamps = NPTimestamps | list[int | float]
-"Timestamps for frames in video time seconds"
+PTSArray = npt.NDArray[np.float64]
+"Numpy array of PTS for frames in video"
 
 
 class ReaderException(Exception): ...
@@ -79,46 +76,53 @@ class Reader(Generic[ReaderFrameType]):
     def __init__(
         self: "Reader[VideoFrame]",
         source: Path | str,
-        timestamps: Timestamps | None = None,
-        logger: Logger | None = None,
         stream: Literal["video"] = "video",
+        pre_loaded_container_timestamps: Optional[PTSArray | list[float]] | None = None,
+        logger: Logger | None = None,
     ) -> None: ...
 
     @overload
     def __init__(
         self: "Reader[AudioFrame]",
         source: Path | str,
-        timestamps: Timestamps | None = None,
-        logger: Logger | None = None,
         stream: Literal["audio"] = "audio",
+        pre_loaded_container_timestamps: Optional[PTSArray | list[float]] | None = None,
+        logger: Logger | None = None,
     ) -> None: ...
 
     def __init__(
         self,
         source: Path | str,
-        timestamps: Timestamps | None = None,
-        logger: Logger | None = None,
         stream: Literal["audio", "video"]
         | tuple[Literal["audio", "video"], int] = "video",
+        pre_loaded_container_timestamps: Optional[PTSArray | list[float]] | None = None,
+        logger: Optional[Logger] = None,
     ):
         """Create a reader for a video file.
 
         Args:
             source: Path to a video file. Can be a local path or an http-address.
-            timestamps: Timestamps for frames in video time in seconds, eg.
-                `[0.033, 0.066]`. If not provided, times will be inferred from the
-                container.
+            stream: The stream to read from, either "audio", "video". If the video file
+                contains multiple streams of the deisred kind, a tuple can be provided
+                to specify which stream to use, e.g. `("audio", 2)` to use the audio
+                stream at index `2`.
+            pre_loaded_container_timestamps: Array containing the PTS of the video
+                seconds. If not provided, PTS will be read from the video container.
+                Providing pre-loaded PTS can speed up initialization for long videos
+                by avoiding demuxing of the entire video to obtain PTS.
             logger: Python logger to use. Decreases performance.
-            stream: The stream to read from, either "audio", "video", or a tuple
-                containing both.
 
         """
-        self._timestamps: Timestamps | None = None
-        if timestamps is not None:
-            self.timestamps: Timestamps = timestamps
+        self._container_timestamps: PTSArray | None = None
+        if pre_loaded_container_timestamps is not None:
+            if isinstance(pre_loaded_container_timestamps, list):
+                pre_loaded_container_timestamps = np.array(
+                    pre_loaded_container_timestamps
+                )
+            self.container_timestamps = pre_loaded_container_timestamps
 
         self.lazy_frame_slice_limit = LAZY_FRAME_SLICE_LIMIT
-        self._times_were_provided = timestamps is not None
+        self._times_were_provided = pre_loaded_container_timestamps is not None
         self._source = source
         self._logger = logger or DEFAULT_LOGGER
         self.stats = Stats()
@@ -171,23 +175,25 @@ class Reader(Generic[ReaderFrameType]):
         return container
 
     @property
-    def timestamps(self) -> Timestamps:
+    def container_timestamps(self) -> PTSArray:
         """Array of timestamps of the stream in seconds of video time.
 
-        If no `timestamps` argument was provided when creating the Reader, realtive
-        video timestamps will be inferred from the video container.
+        If these values were not provided when creating the Reader, they will be
+        inferred from the video container.
         """
-        if self._timestamps is None:
-            return self._stream_timestamps
-        return self._timestamps
+        if self._container_timestamps is None:
+            return self._inferred_container_timestamps
+        return self._container_timestamps
 
-    @timestamps.setter
-    def timestamps(self, timestamps: Timestamps) -> None:
+    @container_timestamps.setter
+    def container_timestamps(self, video_time: PTSArray | list[float]) -> None:
         self._times_were_provided = True
-        self._timestamps = timestamps
+        if isinstance(video_time, list):
+            video_time = np.array(video_time)
+        self._container_timestamps = video_time
 
-    @timestamps.deleter
-    def timestamps(self) -> None:
+    @container_timestamps.deleter
+    def container_timestamps(self) -> None:
         self._times_were_provided = False
 
     @cached_property
@@ -266,9 +272,9 @@ class Reader(Generic[ReaderFrameType]):
         logger = self._get_logger(f"{Reader._seek_to_index.__name__}({time})")
         logger and logger.info(f"seeking to time: {time}")
         if self._times_were_provided:
-            index = max(bisect_right(self.timestamps, time) - 1, 0)
-            closest_timestamp = self.timestamps[index]
-            closest_from_zero = closest_timestamp - self.timestamps[0]
+            index = max(bisect_right(self.container_timestamps, time) - 1, 0)
+            closest_timestamp = self.container_timestamps[index]
+            closest_from_zero = closest_timestamp - self.container_timestamps[0]
             time = self._duration_scale_factor * closest_from_zero
         self._container.seek(int(time * av.time_base))
         self._reset_decoder()
@@ -479,16 +485,19 @@ class Reader(Generic[ReaderFrameType]):
             frame_timestamp = av_frame.time
             if self._times_were_provided:
                 if self._current_decoder_index is not None:
-                    frame_timestamp = self.timestamps[self._current_decoder_index]
+                    frame_timestamp = self.container_timestamps[
+                        self._current_decoder_index
+                    ]
                 else:
                     # we're here from a seek
                     scaled_time = (
-                        av_frame.time / self._duration_scale_factor + self.timestamps[0]
+                        av_frame.time / self._duration_scale_factor
+                        + self.container_timestamps[0]
                     )
                     frame_index = np.searchsorted(
-                        self.timestamps, scaled_time, side="right"
+                        self.container_timestamps, scaled_time, side="right"
                     )
-                    frame_timestamp = self.timestamps[frame_index]
+                    frame_timestamp = self.container_timestamps[frame_index]
                     self._current_decoder_index = int(frame_index)
 
             if isinstance(av_frame, av.video.frame.VideoFrame):
@@ -643,10 +652,10 @@ class Reader(Generic[ReaderFrameType]):
         return Indexer(np.array(self.pts), self)
 
     @cached_property
-    def by_timestamp(self) -> Indexer[ReaderFrameType]:
-        """Time-based access to video frames using timestamps.
+    def by_container_timestamps(self) -> Indexer[ReaderFrameType]:
+        """Time-based access to video frames using container timestamps.
 
-        If no timestamps were provided, this method is equal to `by_container_time`.
+        Container timestamps are relative timestamps measured in seconds.
 
         When accessing a specific key, e.g. `reader[t]`, a frame with this exact
         timestamp needs to exist, otherwise an `IndexError` is raised.
@@ -655,25 +664,15 @@ class Reader(Generic[ReaderFrameType]):
 
         Large slices are returned as a lazy view, which avoids immediately loading all
         frames into RAM.
+
+        Note that numerical imprecisions of float numbers can lead to issues when
+        accessing individual frames by their container timestamp. I is recommended to
+        prefer indexing frames via slices.
         """
-        return Indexer(self.timestamps, self)
+        return Indexer(self.container_timestamps, self)
 
     @cached_property
-    def by_container_time(self) -> Indexer[ReaderFrameType]:
-        """Time-based access to video frames using relative video time seconds.
-
-        When accessing a specific key, e.g. `reader[t]`, a frame with this exact time
-        needs to exist, otherwise an `IndexError` is raised.
-        When acessing a slice, e.g. `reader[a:b]` an `ArrayLike` is returned such
-        that ` a <= frame.time < b` for every frame.
-
-        Large slices are returned as a lazy view, which avoids immediately loading all
-        frames into RAM.
-        """
-        return Indexer(self._stream_timestamps, self)
-
-    @cached_property
-    def _stream_timestamps(self) -> NPTimestamps:
+    def _inferred_container_timestamps(self) -> PTSArray:
         assert self._stream.time_base
         return np.array(self.pts) * float(self._stream.time_base)
 
@@ -695,7 +694,7 @@ class Reader(Generic[ReaderFrameType]):
     def average_rate(self) -> float:
         """Return the average framerate of the video in Hz."""
         if self._times_were_provided or not self._stream.average_rate:
-            return float(1 / np.mean(np.diff(self.timestamps)))
+            return float(1 / np.mean(np.diff(self.container_timestamps)))
         return float(self._stream.average_rate)
 
     @cached_property
@@ -708,7 +707,7 @@ class Reader(Generic[ReaderFrameType]):
     def _duration_from_stream(self) -> float:
         """Duration in seconds using container timestamps"""
         if not self._stream.duration:
-            return float(self._stream_timestamps[-1])
+            return float(self._inferred_container_timestamps[-1])
         assert self._stream.time_base is not None
         return float(self._stream.duration * self._stream.time_base)
 
@@ -721,7 +720,10 @@ class Reader(Generic[ReaderFrameType]):
         """
         if self._times_were_provided or not self._stream.duration:
             last_frame_duration = 1.0 / self.average_rate
-            return float(self.timestamps[-1] - self.timestamps[0]) + last_frame_duration
+            return (
+                float(self.container_timestamps[-1] - self.container_timestamps[0])
+                + last_frame_duration
+            )
         return self._duration_from_stream
 
     @property

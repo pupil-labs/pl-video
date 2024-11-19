@@ -43,8 +43,8 @@ with plv.Reader(video_path) as video:
 
     # Index frames by time
     ts = video[10].time
-    frame = video.by_timestamp[ts]
-    frames = video.by_timestamp[ts : ts + 10]
+    frame = video.by_container_timestamps[ts]
+    frames = video.by_container_timestamps[ts : ts + 10]
 ```
 
 You can write video files like this:

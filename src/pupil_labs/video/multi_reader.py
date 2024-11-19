@@ -2,15 +2,15 @@ from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
 from types import TracebackType
-from typing import Generic, Iterator, Sequence, overload
+from typing import Generic, Iterator, Sequence, cast, overload
 
 import numpy as np
 
 from pupil_labs.video.constants import LAZY_FRAME_SLICE_LIMIT
-from pupil_labs.video.frame import AudioFrame, ReaderFrameType, VideoFrame
+from pupil_labs.video.frame import AudioFrame, ReaderFrameType
 from pupil_labs.video.frame_slice import FrameSlice
 from pupil_labs.video.indexing import Indexer, index_key_to_absolute_indices
-from pupil_labs.video.reader import Reader, Timestamps
+from pupil_labs.video.reader import PTSArray, Reader
 
 ReaderLike = str | Path | Reader[ReaderFrameType]
 
@@ -48,11 +48,11 @@ class MultiReader(Generic[ReaderFrameType]):
         self.lazy_frame_slice_limit = LAZY_FRAME_SLICE_LIMIT
 
     @cached_property
-    def timestamps(self) -> Timestamps:
+    def container_timestamps(self) -> PTSArray:
         all_times = []
-        for reader_start_time, reader in zip(self.reader_start_times, self.readers):
-            timestamps = np.array(reader.timestamps) + reader_start_time
-            all_times.append(timestamps)
+        for reader_start_time, reader in zip(self._reader_start_times, self.readers):
+            video_time = np.array(reader.container_timestamps) + reader_start_time
+            all_times.append(video_time)
         return np.concatenate(all_times, dtype=np.float64)
 
     def __len__(self) -> int:
@@ -82,36 +82,32 @@ class MultiReader(Generic[ReaderFrameType]):
             raise TypeError(f"key must be int or slice, not {type(key)}") from e
 
         try:
-            reader_slice = next(self.reader_slices_for_key(key))
+            reader_slice = next(self._reader_slices_for_key(key))
         except StopIteration as e:
             raise IndexError(f"{key} not found") from e
 
         reader_index = reader_slice.index
         reader = self.readers[reader_index]
-        frame: ReaderFrameType = reader[reader_slice.slice.start]
+        frame = reader[cast(int, reader_slice.slice.start)]
+        frame_type = type(frame)
         frame_index = frame.index + reader_slice.offset
-
-        # if not reader._times_were_provided and reader_index > 0:
-        #     frame_time = frame.time + self.reader_start_times[reader_index]
-        frame_time = frame.time + self.reader_start_times[reader_index]
+        frame_time = frame.time + self._reader_start_times[reader_index]
 
         # frame.av_frame.pts = int(frame_time / frame.av_frame.time_base)
-        output_frame: ReaderFrameType = {
-            VideoFrame: VideoFrame,
-            AudioFrame: AudioFrame,
-        }[type(frame)](
+        output_frame = frame_type(
             av_frame=frame.av_frame,
             time=frame_time,
             index=frame_index,
             source=frame,
         )
+
         return output_frame
 
     @cached_property
-    def reader_start_times(self) -> Timestamps:
+    def _reader_start_times(self) -> PTSArray:
         return np.cumsum([[0] + [reader.duration for reader in self.readers]])
 
-    def reader_slices_for_key(self, key: int | slice) -> Iterator[MultiReaderSlice]:
+    def _reader_slices_for_key(self, key: int | slice) -> Iterator[MultiReaderSlice]:
         start, stop, _ = index_key_to_absolute_indices(key, self)  # TODO: handle step
         offset = 0
         for reader_index, reader in enumerate(self.readers):
@@ -129,8 +125,8 @@ class MultiReader(Generic[ReaderFrameType]):
                 break
 
     @cached_property
-    def by_time(self) -> Indexer[ReaderFrameType]:
-        return Indexer(self.timestamps, self)
+    def by_container_timestamps(self) -> Indexer[ReaderFrameType]:
+        return Indexer(self.container_timestamps, self)
 
     def __enter__(self) -> "MultiReader":
         return self

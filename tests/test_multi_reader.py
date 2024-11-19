@@ -163,7 +163,7 @@ def test_slices(
 
 
 def test_times(reader: MultiReader, correct_data: PacketData) -> None:
-    assert np.allclose(reader.timestamps, correct_data.times)
+    assert np.allclose(reader.container_timestamps, correct_data.times)
 
 
 def test_by_time(reader: MultiReader, correct_data: PacketData) -> None:
@@ -171,13 +171,13 @@ def test_by_time(reader: MultiReader, correct_data: PacketData) -> None:
         if time > 1:
             first_after_1s = time
             break
-    assert reader.by_time[1.0:5.0][0].ts == first_after_1s  # type: ignore
+    assert reader.by_container_timestamps[1.0:5.0][0].ts == first_after_1s  # type: ignore
 
     for time in correct_data.times:
         if time > 15:
             first_after_15s = time
             break
-    assert reader.by_time[15.0:20.0][0].ts == first_after_15s  # type: ignore
+    assert reader.by_container_timestamps[15.0:20.0][0].ts == first_after_15s  # type: ignore
 
 
 @pytest.fixture
