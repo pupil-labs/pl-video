@@ -82,6 +82,9 @@ class Writer:
         | VideoFrame,
         time: Optional[float] = None,
     ) -> None:
+        if self.fps is not None and time is not None:
+            raise ValueError("Can't provide time argument when fps is set!")
+
         if isinstance(frame, (AudioFrame, VideoFrame)):
             av_frame = frame.av_frame
             if time is None:
@@ -98,7 +101,7 @@ class Writer:
         else:
             time_base = self.audio_stream.codec_context.time_base
 
-        if time is not None:
+        if time is not None and time_base is not None:
             av_frame.pts = int(time / time_base)
         self._encode_av_frame(av_frame)
 
@@ -135,12 +138,18 @@ class Writer:
                 "could not add stream with encoder 'h264_nvenc'"
                 f"using libx264 instead. Error was: {h264_nvenc_error}"
             )
-            stream = self.container.add_stream("h264")
+            if self.fps is None:
+                stream = self.container.add_stream("h264")
+            else:
+                stream = self.container.add_stream("h264", rate=self.fps)
         else:
-            stream = self.container.add_stream("h264_nvenc")  # type: ignore
-            # TODO: why does mypy fail the above check?
+            if self.fps is None:
+                stream = self.container.add_stream("h264_nvenc")  # type: ignore
+                # TODO: why does mypy fail the above check?
+            else:
+                stream = self.container.add_stream("h264_nvenc", rate=self.fps)
 
-        stream.codec_context.time_base = Fraction(1, 90000)
+        # stream.codec_context.time_base = Fraction(1, 90000)
         stream.codec_context.bit_rate = self.bit_rate
         stream.codec_context.pix_fmt = "yuv420p"
 
