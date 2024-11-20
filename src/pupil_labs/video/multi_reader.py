@@ -10,7 +10,7 @@ from pupil_labs.video.constants import LAZY_FRAME_SLICE_LIMIT
 from pupil_labs.video.frame import AudioFrame, ReaderFrameType
 from pupil_labs.video.frame_slice import FrameSlice
 from pupil_labs.video.indexing import Indexer, index_key_to_absolute_indices
-from pupil_labs.video.reader import PTSArray, Reader
+from pupil_labs.video.reader import ContainerTimestamps, Reader
 
 ReaderLike = str | Path | Reader[ReaderFrameType]
 
@@ -48,7 +48,7 @@ class MultiReader(Generic[ReaderFrameType]):
         self.lazy_frame_slice_limit = LAZY_FRAME_SLICE_LIMIT
 
     @cached_property
-    def container_timestamps(self) -> PTSArray:
+    def container_timestamps(self) -> ContainerTimestamps:
         all_times = []
         for reader_start_time, reader in zip(self._reader_start_times, self.readers):
             video_time = np.array(reader.container_timestamps) + reader_start_time
@@ -104,7 +104,7 @@ class MultiReader(Generic[ReaderFrameType]):
         return output_frame
 
     @cached_property
-    def _reader_start_times(self) -> PTSArray:
+    def _reader_start_times(self) -> ContainerTimestamps:
         return np.cumsum([[0] + [reader.duration for reader in self.readers]])
 
     def _reader_slices_for_key(self, key: int | slice) -> Iterator[MultiReaderSlice]:

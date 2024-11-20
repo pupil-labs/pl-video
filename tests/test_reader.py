@@ -523,9 +523,7 @@ def test_times_return_container_times(
 
 def test_external_times(video_path: str, correct_data: PacketData) -> None:
     external_timestamps = [i * 0.1 for i in range(len(correct_data.video_pts))]
-    reader = Reader(
-        source=video_path, pre_loaded_container_timestamps=external_timestamps
-    )
+    reader = Reader(source=video_path, container_timestamps=external_timestamps)
     assert np.all(reader.container_timestamps == external_timestamps)
 
     result_frames = reader.by_container_timestamps[1.0:5.0]

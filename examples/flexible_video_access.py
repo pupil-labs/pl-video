@@ -32,10 +32,10 @@ def main(video_path: Path):
 
         # Index frames by time
         ts = video[10].time
-        frame = video.by_video_time[ts]
+        frame = video.by_container_timestamps[ts]
         assert frame.time == ts and frame.index == 10
 
-        frames = video.by_video_time[ts : ts + 10]
+        frames = video.by_container_timestamps[ts : ts + 10]
         assert frames[0].time == ts and frames[0] == 10
 
         # Read video properties

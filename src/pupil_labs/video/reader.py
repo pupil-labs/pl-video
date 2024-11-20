@@ -39,7 +39,7 @@ from pupil_labs.video.indexing import Indexer, index_key_to_absolute_indices
 DEFAULT_LOGGER = getLogger(__name__)
 AVFrame = av.video.frame.VideoFrame | av.audio.frame.AudioFrame
 
-PTSArray = npt.NDArray[np.float64]
+ContainerTimestamps = npt.NDArray[np.float64]
 "Numpy array of PTS for frames in video"
 
 
@@ -77,7 +77,7 @@ class Reader(Generic[ReaderFrameType]):
         self: "Reader[VideoFrame]",
         source: Path | str,
         stream: Literal["video"] = "video",
-        pre_loaded_container_timestamps: Optional[PTSArray | list[float]] | None = None,
+        container_timestamps: Optional[ContainerTimestamps | list[float]] | None = None,
         logger: Logger | None = None,
     ) -> None: ...
 
@@ -86,7 +86,7 @@ class Reader(Generic[ReaderFrameType]):
         self: "Reader[AudioFrame]",
         source: Path | str,
         stream: Literal["audio"] = "audio",
-        pre_loaded_container_timestamps: Optional[PTSArray | list[float]] | None = None,
+        container_timestamps: Optional[ContainerTimestamps | list[float]] | None = None,
         logger: Logger | None = None,
     ) -> None: ...
 
@@ -95,7 +95,7 @@ class Reader(Generic[ReaderFrameType]):
         source: Path | str,
         stream: Literal["audio", "video"]
         | tuple[Literal["audio", "video"], int] = "video",
-        pre_loaded_container_timestamps: Optional[PTSArray | list[float]] | None = None,
+        container_timestamps: Optional[ContainerTimestamps | list[float]] | None = None,
         logger: Optional[Logger] = None,
     ):
         """Create a reader for a video file.
@@ -106,23 +106,22 @@ class Reader(Generic[ReaderFrameType]):
                 contains multiple streams of the deisred kind, a tuple can be provided
                 to specify which stream to use, e.g. `("audio", 2)` to use the audio
                 stream at index `2`.
-            pre_loaded_container_timestamps: Array containing the PTS of the video
-                seconds. If not provided, PTS will be read from the video container.
-                Providing pre-loaded PTS can speed up initialization for long videos
-                by avoiding demuxing of the entire video to obtain PTS.
+            container_timestamps: Array containing the timestamps of the video frames in
+                container time (equal to PTS * time_base). If not provided, timestamps
+                will be inferred from the container. Providing pre-loaded values can
+                speed up initialization for long videos by avoiding demuxing of the
+                entire video to obtain PTS.
             logger: Python logger to use. Decreases performance.
 
         """
-        self._container_timestamps: PTSArray | None = None
-        if pre_loaded_container_timestamps is not None:
-            if isinstance(pre_loaded_container_timestamps, list):
-                pre_loaded_container_timestamps = np.array(
-                    pre_loaded_container_timestamps
-                )
-            self.container_timestamps = pre_loaded_container_timestamps
+        self._container_timestamps: ContainerTimestamps | None = None
+        if container_timestamps is not None:
+            if isinstance(container_timestamps, list):
+                container_timestamps = np.array(container_timestamps)
+            self.container_timestamps = container_timestamps
 
         self.lazy_frame_slice_limit = LAZY_FRAME_SLICE_LIMIT
-        self._times_were_provided = pre_loaded_container_timestamps is not None
+        self._times_were_provided = container_timestamps is not None
         self._source = source
         self._logger = logger or DEFAULT_LOGGER
         self.stats = Stats()
@@ -175,7 +174,7 @@ class Reader(Generic[ReaderFrameType]):
         return container
 
     @property
-    def container_timestamps(self) -> PTSArray:
+    def container_timestamps(self) -> ContainerTimestamps:
         """Frame timestamps in container time.
 
         Container time is measured in seconds relative to begining of the video.
@@ -189,7 +188,9 @@ class Reader(Generic[ReaderFrameType]):
         return self._container_timestamps
 
     @container_timestamps.setter
-    def container_timestamps(self, video_time: PTSArray | list[float]) -> None:
+    def container_timestamps(
+        self, video_time: ContainerTimestamps | list[float]
+    ) -> None:
         self._times_were_provided = True
         if isinstance(video_time, list):
             video_time = np.array(video_time)
@@ -670,13 +671,13 @@ class Reader(Generic[ReaderFrameType]):
         frames into RAM.
 
         Note that numerical imprecisions of float numbers can lead to issues when
-        accessing individual frames by their container timestamp. I is recommended to
+        accessing individual frames by their container timestamp. It is recommended to
         prefer indexing frames via slices.
         """
         return Indexer(self.container_timestamps, self)
 
     @cached_property
-    def _inferred_container_timestamps(self) -> PTSArray:
+    def _inferred_container_timestamps(self) -> ContainerTimestamps:
         assert self._stream.time_base
         return np.array(self.pts) * float(self._stream.time_base)
 

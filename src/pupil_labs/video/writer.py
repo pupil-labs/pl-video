@@ -138,20 +138,20 @@ class Writer:
                 "could not add stream with encoder 'h264_nvenc'"
                 f"using libx264 instead. Error was: {h264_nvenc_error}"
             )
-            if self.fps is None:
-                stream = self.container.add_stream("h264")
-            else:
-                stream = self.container.add_stream("h264", rate=self.fps)
+            encoder_name = "h264"
         else:
-            if self.fps is None:
-                stream = self.container.add_stream("h264_nvenc")  # type: ignore
-                # TODO: why does mypy fail the above check?
-            else:
-                stream = self.container.add_stream("h264_nvenc", rate=self.fps)
+            encoder_name = "h264_nvenc"
 
-        # stream.codec_context.time_base = Fraction(1, 90000)
+        if self.fps is None:
+            stream = self.container.add_stream(encoder_name)
+        else:
+            stream = self.container.add_stream(encoder_name, rate=self.fps)
+        stream = cast(av.video.stream.VideoStream, stream)
+
         stream.codec_context.bit_rate = self.bit_rate
         stream.codec_context.pix_fmt = "yuv420p"
+        if self.fps is None:
+            stream.codec_context.time_base = Fraction(1, 90000)
 
         # h264_nvenc encoder seems to encode at a different bitrate to requested,
         # multiplying by 10 and dividing by 8 seems to fix it (maybe it's a matter
