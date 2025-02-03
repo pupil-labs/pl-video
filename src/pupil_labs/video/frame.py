@@ -167,4 +167,6 @@ def av_frame_to_ndarray_fast(
     return result
 
 
-ReaderFrameType = TypeVar("ReaderFrameType", BaseFrame, VideoFrame, AudioFrame)
+ReaderFrameType = TypeVar(
+    "ReaderFrameType", BaseFrame, VideoFrame, AudioFrame, covariant=True
+)

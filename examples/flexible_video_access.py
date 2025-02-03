@@ -32,10 +32,10 @@ def main(video_path: Path):
 
         # Index frames by time
         ts = video[10].time
-        frame = video.by_timestamp[ts]
+        frame = video.by_container_timestamps[ts]
         assert frame.time == ts and frame.index == 10
 
-        frames = video.by_timestamp[ts : ts + 10]
+        frames = video.by_container_timestamps[ts : ts + 10]
         assert frames[0].time == ts and frames[0] == 10
 
         # Read video properties
@@ -43,18 +43,6 @@ def main(video_path: Path):
         print(f"Video resolution: {video.width}x{video.height}")
         num_frames = len(video)
         print(f"Number of frames: {num_frames}")
-
-    # Use external timestamps for indexing
-    timestamps = np.arange(num_frames) + 100
-    with plv.Reader(video_path, timestamps=timestamps) as video:
-        frame = video[10]
-        assert frame.time == 10 + 100
-
-        frame = video.by_timestamp[10 + 100]
-        assert frame.time == 10 + 100
-
-        frame = video.by_timestamp[10 + 100 : 20 + 100]
-        assert frame[0].time == 10 + 100
 
 
 if __name__ == "__main__":
