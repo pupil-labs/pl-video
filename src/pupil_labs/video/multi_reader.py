@@ -100,7 +100,6 @@ class MultiReader(Generic[ReaderFrameType]):
             index=frame_index,
             source=frame,
         )
-
         return output_frame
 
     @cached_property
@@ -168,3 +167,7 @@ class MultiReader(Generic[ReaderFrameType]):
     @property
     def height(self) -> int | None:
         return self.readers[0].height
+
+    @property
+    def rate(self) -> int | None:
+        return self.readers[0].rate
