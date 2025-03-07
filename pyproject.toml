@@ -57,8 +57,8 @@ dev-dependencies = [
 ]
 
 [build-system]
-requires = ["setuptools >= 61.0"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling", "uv-dynamic-versioning"]
+build-backend = "hatchling.build"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -73,3 +73,9 @@ source = ["pupil_labs"]
 
 [tool.deptry.per_rule_ignores]
 DEP001 = ["pupil_labs"]
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pupil_labs"]
