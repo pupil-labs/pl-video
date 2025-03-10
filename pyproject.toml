@@ -79,3 +79,8 @@ source = "uv-dynamic-versioning"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/pupil_labs"]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+  "tests/data",
+]
