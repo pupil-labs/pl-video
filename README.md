@@ -1,8 +1,8 @@
-# pl-video
+# pupil-labs-video
 
 [![ci](https://github.com/pupil-labs/pl-video/workflows/ci/badge.svg)](https://github.com/pupil-labs/pl-video/actions?query=workflow%3Aci)
 [![documentation](https://img.shields.io/badge/docs-mkdocs-708FCC.svg?style=flat)](https://pupil-labs.github.io/pl-video/)
-[![pypi version](https://img.shields.io/pypi/v/pupil_labs_video.svg)](https://pypi.org/project/pupil_labs_video/)
+[![pypi version](https://img.shields.io/pypi/v/pupil-labs-video.svg)](https://pypi.org/project/pupil-labs-video/)
 
 A high-level wrapper of [PyAV](https://github.com/PyAV-Org/PyAV) providing an easy to use interface to video data.
 
@@ -20,7 +20,7 @@ Features include:
 ## Installation
 
 ```bash
-pip install pupil_labs_video
+pip install pupil-labs-video
 ```
 
 ## Quick Start
