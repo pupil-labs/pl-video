@@ -19,8 +19,8 @@ classifiers = [
 ]
 
 dependencies = [
-    "numpy>=2.0.2",
-    "av>=13.1.0",
+    "numpy",
+    "av",
 ]
 
 [project.urls]
@@ -53,7 +53,6 @@ dev-dependencies = [
     "tomli>=2.0; python_version < '3.11'",
     "tqdm>=4.66.5",
     "types-tqdm>=4.66",
-    "opencv-python>=4.10.0.84",
 ]
 
 [build-system]
