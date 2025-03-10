@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from fractions import Fraction
 from functools import cached_property
 from pathlib import Path
 from types import TracebackType
@@ -169,5 +170,5 @@ class MultiReader(Generic[ReaderFrameType]):
         return self.readers[0].height
 
     @property
-    def rate(self) -> int | None:
+    def rate(self) -> Fraction | int | None:
         return self.readers[0].rate
