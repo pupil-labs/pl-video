@@ -29,6 +29,8 @@ Documentation = "https://pupil-labs.github.io/pl-video"
 Repository = "https://github.com/pupil-labs/pl-video"
 Issues = "https://github.com/pupil-labs/pl-video/issues"
 
+[tool.deptry]
+ignore = ["DEP001", "DEP003", "DEP004"]
 
 [tool.uv]
 dev-dependencies = [
