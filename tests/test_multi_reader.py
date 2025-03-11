@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
-from typing import Tuple
 
 import av
 import numpy as np
@@ -181,7 +180,7 @@ def test_by_time(reader: MultiReader, correct_data: PacketData) -> None:
 
 
 @pytest.fixture
-def expected_size(multi_part_video_paths: list[str]) -> Tuple[int, int]:
+def expected_size(multi_part_video_paths: list[str]) -> tuple[int, int]:
     path = Path(multi_part_video_paths[0])
     if path.name.startswith("PI"):
         return (1088, 1080)
@@ -191,6 +190,6 @@ def expected_size(multi_part_video_paths: list[str]) -> Tuple[int, int]:
         raise ValueError(f"Unknown video: {path}")
 
 
-def test_width_and_height(reader: MultiReader, expected_size: Tuple[int, int]) -> None:
+def test_width_and_height(reader: MultiReader, expected_size: tuple[int, int]) -> None:
     assert reader.width == expected_size[0]
     assert reader.height == expected_size[1]
