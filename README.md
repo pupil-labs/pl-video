@@ -1,6 +1,6 @@
 # Pupil Labs Video
 
-[![ci](https://github.com/pupil-labs/pl-video/workflows/ci/badge.svg)](https://github.com/pupil-labs/pl-video/actions?query=workflow%3Amain)
+[![ci](https://github.com/pupil-labs/pl-video/actions/workflows/main.yml/badge.svg)](https://github.com/pupil-labs/pl-video/actions/workflows/main.yml)
 [![documentation](https://img.shields.io/badge/docs-mkdocs-708FCC.svg?style=flat)](https://pupil-labs.github.io/pl-video/)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
