@@ -4,50 +4,30 @@ exclude = ["examples/flexible_video_access.py"]
 
 [lint]
 extend-select = [
-        # flake8-builtins
-        "A",
-        # flake8-bugbear
-        "B",
-        # flake8-comprehensions
-        "C4",
-        # mccabe
-        "C90",
-        # missing-trailing-comma
-        "COM812",
-        # prohibited-trailing-comma
-        "COM812",
-        # pycodestyle
-        "D",
-        # Error
-        "E",
-        # pyflakes
-        "F",
-        # isort
-        "I",
-        # flake8-implicit-str-concat
-        "ISC",
-        # manual-list-comprehension
-        "PERF401",
-        # pygrep-hooks
-        "PGH",
-        # flake8-quotes
-        "Q",
-        # ruff
-        "RUF",
-        # flake8-bandit
-        "S",
-        # flake8-simplify
-        "SIM",
-        # flake8-debugger
-        "T10",
-        # tryceratops
-        "TRY",
-        # pyupgrade
-        "UP",
-        # Warning
-        "W",
-        # flake8-2020
-        "YTT",
+        "A", # flake8-builtins
+        "B",  # flake8-bugbear
+        "C4", # flake8-comprehensions
+        "C90", # mccabe
+        "COM812", # missing-trailing-comma
+        "COM812", # prohibited-trailing-comma
+        "D", # pycodestyle
+        "E", # Error
+        "F", # pyflakes
+        "I", # isort
+        "ISC", # flake8-implicit-str-concat
+        "NPY201", # numpy 2.0
+        "PERF401", # manual-list-comprehension
+        "PD", # pandas vett
+        "PGH", # pygrep-hooks
+        "Q", # flake8-quotes
+        "RUF", # ruff
+        "S",  # flake8-bandit
+        "SIM", # flake8-simplify
+        "T10", # flake8-debugger
+        "TRY", # tryceratops
+        "UP", # pyupgrade
+        "W", # Warning
+        "YTT", # flake8-2020
 ]
 ignore = [
         # https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules
@@ -92,9 +72,6 @@ ignore = [
         # assert
         "S101",
 ]
-
-[lint.per-file-ignores]
-"tests/*" = ["S101"]
 
 [format]
 # Enable preview to get hugged parenthesis unwrapping and other nice surprises
