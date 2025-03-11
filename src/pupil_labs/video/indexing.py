@@ -1,4 +1,5 @@
-from typing import Generic, Sized, TypeVar, overload
+from collections.abc import Sized
+from typing import Generic, TypeVar, overload
 
 import numpy as np
 import numpy.typing as npt

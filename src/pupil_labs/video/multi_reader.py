@@ -1,9 +1,10 @@
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from fractions import Fraction
 from functools import cached_property
 from pathlib import Path
 from types import TracebackType
-from typing import Generic, Iterator, Sequence, cast, overload
+from typing import Generic, cast, overload
 
 import numpy as np
 

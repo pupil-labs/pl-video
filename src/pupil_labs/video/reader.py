@@ -1,7 +1,7 @@
 import sys
 from bisect import bisect_right
 from collections import deque
-from collections.abc import Iterator
+from collections.abc import Iterator, MutableMapping
 from dataclasses import dataclass
 from fractions import Fraction
 from functools import cached_property
@@ -13,7 +13,6 @@ from typing import (
     Any,
     Generic,
     Literal,
-    MutableMapping,
     Optional,
     cast,
     overload,
@@ -572,7 +571,7 @@ class Reader(Generic[ReaderFrameType]):
 
                 logpackets(
                     f"demuxed"
-                    f" {packet.stream.type[0]}{packet.is_keyframe and 'k' or ' '}"
+                    f" {packet.stream.type[0]}{(packet.is_keyframe and 'k') or ' '}"
                     f" {packet_time_str}"
                     f" index={index_str}"
                     f" pts={packet.pts}"

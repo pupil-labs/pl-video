@@ -1,5 +1,5 @@
+from collections.abc import Iterator
 from typing import (
-    Iterator,
     Protocol,
     TypeVar,
     overload,
