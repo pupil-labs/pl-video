@@ -1,4 +1,4 @@
-"""pupil_labs.video
+"""pupil_labs.video package.
 
 A high-level wrapper of PyAV providing an easy to use interface to video data.
 """

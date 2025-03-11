@@ -1,6 +1,6 @@
-# pupil-labs-video
+# Pupil Labs Video
 
-[![ci](https://github.com/pupil-labs/pl-video/workflows/ci/badge.svg)](https://github.com/pupil-labs/pl-video/actions?query=workflow%main)
+[![ci](https://github.com/pupil-labs/pl-video/workflows/ci/badge.svg)](https://github.com/pupil-labs/pl-video/actions?query=workflow%3Amain)
 [![documentation](https://img.shields.io/badge/docs-mkdocs-708FCC.svg?style=flat)](https://pupil-labs.github.io/pl-video/)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
@@ -22,8 +22,14 @@ Features include:
 
 ## Installation
 
-```bash
+```
 pip install pupil-labs-video
+```
+
+or
+
+```bash
+pip install -e https://github.com/pupil-labs/pl-video
 ```
 
 ## Quick Start
@@ -59,5 +65,3 @@ with (plv.Writer(out_path) as writer):
     for img in images:
         writer.write_image(img)
 ```
-
-To learn more see the documentation (to be linked) and examples (to be linked).

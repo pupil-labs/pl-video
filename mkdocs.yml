@@ -1,4 +1,4 @@
-site_name: "pl-video"
+site_name: "Pupil Labs Video"
 site_description: "A high-level wrapper of PyAV providing an easy to use interface to video data."
 site_url: "https://pupil-labs.github.io/pl-video"
 repo_url: "https://github.com/pupil-labs/pl-video"
