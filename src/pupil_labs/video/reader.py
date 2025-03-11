@@ -19,7 +19,7 @@ from typing import (
 )
 
 try:
-    from typing import Self
+    from typing import Self  # type: ignore
 except ImportError:
     from typing_extensions import Self
 import av.audio
@@ -681,7 +681,7 @@ class Reader(Generic[ReaderFrameType]):
         assert self._stream.time_base
         return np.array(self.pts) * float(self._stream.time_base)
 
-    def __enter__(self) -> Self:
+    def __enter__(self) -> Self:  # type: ignore
         return self
 
     def __exit__(
