@@ -1,6 +1,6 @@
 # pupil-labs-video
 
-[![ci](https://github.com/pupil-labs/pl-video/workflows/ci/badge.svg)](https://github.com/pupil-labs/pl-video/actions?query=workflow%3Aci)
+[![ci](https://github.com/pupil-labs/pl-video/workflows/ci/badge.svg)](https://github.com/pupil-labs/pl-video/actions?query=workflow%main)
 [![documentation](https://img.shields.io/badge/docs-mkdocs-708FCC.svg?style=flat)](https://pupil-labs.github.io/pl-video/)
 [![pypi version](https://img.shields.io/pypi/v/pupil-labs-video.svg)](https://pypi.org/project/pupil-labs-video/)
 
