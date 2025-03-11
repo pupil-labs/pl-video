@@ -1,3 +1,4 @@
+import sys
 from bisect import bisect_right
 from collections import deque
 from collections.abc import Iterator
@@ -18,10 +19,6 @@ from typing import (
     overload,
 )
 
-try:
-    from typing import Self  # type: ignore
-except ImportError:
-    from typing_extensions import Self
 import av.audio
 import av.container
 import av.error
@@ -35,6 +32,12 @@ from pupil_labs.video.constants import LAZY_FRAME_SLICE_LIMIT
 from pupil_labs.video.frame import AudioFrame, ReaderFrameType, VideoFrame
 from pupil_labs.video.frame_slice import FrameSlice
 from pupil_labs.video.indexing import Indexer, index_key_to_absolute_indices
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
+
 
 DEFAULT_LOGGER = getLogger(__name__)
 AVFrame = av.video.frame.VideoFrame | av.audio.frame.AudioFrame
@@ -681,7 +684,7 @@ class Reader(Generic[ReaderFrameType]):
         assert self._stream.time_base
         return np.array(self.pts) * float(self._stream.time_base)
 
-    def __enter__(self) -> Self:  # type: ignore
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(
