@@ -68,4 +68,7 @@ jobs:
         run: uv run mkdocs build -s
 
       - name: Deploy latest docs
-        run: uv run mike deploy dev
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          uv run mike deploy dev
