@@ -86,17 +86,26 @@ plugins:
   - search
   - markdown-exec
   - coverage
+  - mike:
+      # These fields are all optional; the defaults are as below...
+      alias_type: symlink
+      redirect_template: null
+      deploy_prefix: ""
+      canonical_version: null
+      version_selector: true
+      css_dir: css
+      javascript_dir: js
   - mkdocstrings:
       handlers:
         python:
-          import:
+          inventories:
             - https://docs.python.org/3/objects.inv
           paths: [src]
           options:
             docstring_options:
               ignore_init_summary: true
             docstring_section_style: list
-            # filters: ["!^_"]
+            filters: ["!^_"]
             heading_level: 1
             inherited_members: true
             merge_init_into_class: true
@@ -108,7 +117,7 @@ plugins:
             show_symbol_type_heading: true
             show_symbol_type_toc: true
             signature_crossrefs: true
-            # summary: true
+            summary: true
   - git-revision-date-localized:
       enabled: !ENV [DEPLOY, false]
       enable_creation_date: true
