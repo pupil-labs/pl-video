@@ -29,6 +29,7 @@ pip install pupil-labs-video
 or
 
 ```bash
+<<<<<<< before updating
 pip install -e https://github.com/pupil-labs/pl-video
 ```
 
@@ -64,4 +65,7 @@ import pupil_labs.video as plv
 with (plv.Writer(out_path) as writer):
     for img in images:
         writer.write_image(img)
+=======
+pip install -e git+https://github.com/pupil-labs/pl-video.git
+>>>>>>> after updating
 ```
