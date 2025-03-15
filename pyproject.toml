@@ -40,8 +40,8 @@ dev-dependencies = [
     # docs
     "markdown-callouts>=0.4",
     "markdown-exec>=1.8",
-    "mkdocs>=1.6",
     "mike",
+    "mkdocs>=1.6",
     "mkdocs-coverage>=1.0",
     "mkdocs-gen-files>=0.5",
     "mkdocs-git-revision-date-localized-plugin>=1.2",
