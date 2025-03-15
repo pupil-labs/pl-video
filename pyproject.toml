@@ -20,14 +20,14 @@ classifiers = [
 
 dependencies = ["numpy", "av"]
 
+[project.optional-dependencies]
+examples = ["opencv-python", "tqdm"]
+
 [project.urls]
 Homepage = "https://pupil-labs.github.io/pl-video"
 Documentation = "https://pupil-labs.github.io/pl-video"
 Repository = "https://github.com/pupil-labs/pl-video"
 Issues = "https://github.com/pupil-labs/pl-video/issues"
-
-[tool.deptry]
-ignore = ["DEP001", "DEP003", "DEP004"]
 
 [tool.uv]
 dev-dependencies = [
@@ -71,7 +71,9 @@ branch = true
 source = ["pupil_labs"]
 
 [tool.deptry.per_rule_ignores]
-DEP001 = ["pupil_labs"]
+DEP001 = ["pupil_labs", "cv2"]
+DEP002 = ["opencv-python"]
+DEP003 = ["pupil_labs", "typing_extensions"]
 
 [tool.hatch.version]
 source = "uv-dynamic-versioning"
