@@ -61,9 +61,6 @@ jobs:
       - name: Set up the environment
         uses: ./.github/actions/setup-python-env
 
-      - name: Run tests
-        run: uv run python -m pytest tests --cov --cov-config=pyproject.toml --cov-report=html
-
       - name: Deploy latest docs
         run: |
           git fetch origin gh-pages --depth=1
