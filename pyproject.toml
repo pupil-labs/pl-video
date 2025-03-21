@@ -2,7 +2,7 @@
 name = "pupil-labs-video"
 description = "A high-level wrapper of PyAV providing an easy to use interface to video data."
 authors = [{ name = "Pupil Labs GmbH", email = "info@pupil-labs.com" }]
-license = { text = "" }
+license = { text = "MIT" }
 readme = "README.md"
 requires-python = ">=3.10, <4.0"
 keywords = []
@@ -37,6 +37,12 @@ dev-dependencies = [
     "deptry>=0.20.0",
     "tox-uv>=1.11.3",
     "pytest-cov>=4.0.0",
+
+    # stubs
+    # "opencv-stubs",
+    # "types-protobuf",
+    # "pandas-stubs",
+
     # docs
     "markdown-callouts>=0.4",
     "markdown-exec>=1.8",

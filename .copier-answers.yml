@@ -1,10 +1,11 @@
 # Changes here will be overwritten by Copier
-_commit: f9f3e1a
+_commit: 692a4e6
 _src_path: git@github.com:pupil-labs/pl-template.git
 author_email: info@pupil-labs.com
 author_fullname: Pupil Labs GmbH
 author_username: pupil-labs
 copyright_license: MIT
+debug_module: false
 project_description:
   A high-level wrapper of PyAV providing an easy to use interface
   to video data.
