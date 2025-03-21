@@ -762,14 +762,22 @@ class Reader(Generic[ReaderFrameType]):
         """Returns an `Reader` providing access to the audio data of the video only."""
         if not self._container.streams.audio:
             return None
-        return Reader(self.source, logger=self.logger, stream="audio")
+        if (self._stream_kind, self._stream_index) == ("audio", 0):
+            return cast(Reader[AudioFrame], self)
+        return Reader(
+            self.source, logger=self.logger if self._log else None, stream="audio"
+        )
 
     @cached_property
     def video(self) -> "Reader[VideoFrame] | None":
         """Returns an `Reader` providing access to the video data of the video only."""
         if not self._container.streams.video:
             return None
-        return Reader(self.source, logger=self.logger, stream="video")
+        if (self._stream_kind, self._stream_index) == ("video", 0):
+            return cast(Reader[VideoFrame], self)
+        return Reader(
+            self.source, logger=self.logger if self._log else None, stream="video"
+        )
 
     def _frame_summary(
         self, result: list[ReaderFrameType] | deque[ReaderFrameType]
