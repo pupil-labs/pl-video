@@ -18,7 +18,7 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 
-dependencies = ["numpy", "av"]
+dependencies = ["numpy", "av", "universal_pathlib"]
 
 [project.optional-dependencies]
 examples = ["opencv-python", "tqdm"]
