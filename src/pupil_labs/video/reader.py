@@ -26,6 +26,7 @@ import av.stream
 import av.video
 import numpy as np
 import numpy.typing as npt
+from upath import UPath
 
 from pupil_labs.video.constants import LAZY_FRAME_SLICE_LIMIT
 from pupil_labs.video.frame import AudioFrame, ReaderFrameType, VideoFrame
@@ -170,7 +171,13 @@ class Reader(Generic[ReaderFrameType]):
 
     @cached_property
     def _container(self) -> av.container.input.InputContainer:
-        container = av.open(self.source)  # type: av.container.input.InputContainer
+        url = self.source
+        if isinstance(self.source, UPath):
+            try:
+                url = self.source.fs.sign(self.source)
+            except NotImplementedError:
+                url = str(url)
+        container = av.open(url)  # type: av.container.input.InputContainer
         for stream in container.streams.video:
             stream.thread_type = "FRAME"
         return container

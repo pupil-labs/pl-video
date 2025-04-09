@@ -7,6 +7,7 @@ import av
 import av.stream
 import numpy as np
 import pytest
+from upath import UPath
 
 from pupil_labs.video.frame import VideoFrame
 from pupil_labs.video.frame_slice import FrameSlice
@@ -565,3 +566,9 @@ def test_audio_reader(reader: Reader[VideoFrame], correct_data: PacketData) -> N
             assert audio_reader[i].pts == correct_data.audio_pts[i]
 
         assert len(audio_reader) == len(correct_data.audio_pts)
+
+
+def test_upath_support(video_path: Path, correct_data: PacketData) -> None:
+    path = UPath(video_path)
+    reader = Reader(path)
+    assert len(reader) == len(correct_data.video_pts)
