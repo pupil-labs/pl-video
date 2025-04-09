@@ -24,10 +24,12 @@ nav:
 theme:
   name: material
   custom_dir: docs/overrides
+  favicon: assets/favicon.ico
   features:
     - announce.dismiss
     - content.action.edit
     - content.code.copy
+    - content.code.annotate
     - navigation.indexes
     - navigation.sections
     - navigation.tabs
@@ -68,6 +70,9 @@ markdown_extensions:
   - pymdownx.emoji:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
+      options:
+        custom_icons:
+          - overrides/.icons
   - pymdownx.magiclink
   - pymdownx.snippets:
       base_path: [!relative $config_dir]
@@ -138,3 +143,7 @@ extra:
       link: https://github.com/pupil-labs
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/pupil-labs-video/
+    - icon: fontawesome/brands/discord
+      link: https://pupil-labs.com/chat
+    - icon: logomark
+      link: https://pupil-labs.com/
