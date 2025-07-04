@@ -78,11 +78,13 @@ def correct_data(video_path: Path) -> PacketData:  # noqa: C901
             video_index += 1
 
     if video_pts:
+        video_pts = sorted(video_pts)
         video_time_base = container.streams.video[0].time_base
         assert video_time_base
         video_times = [float(pts * video_time_base) for pts in video_pts]
 
     if audio_pts:
+        audio_pts = sorted(audio_pts)
         audio_time_base = container.streams.audio[0].time_base
         assert audio_time_base
         audio_times = [float(pts * audio_time_base) for pts in audio_pts]
@@ -137,8 +139,8 @@ def test_iteration(reader: Reader[VideoFrame], correct_data: PacketData) -> None
     frame_count = 0
     for frame, expected_pts in measure_fps(zip(reader, correct_data.video_pts)):
         assert frame.pts == expected_pts
+        assert frame.index == frame_count
         frame_count += 1
-
     assert reader.stats.seeks == 1
     assert frame_count == len(correct_data.video_pts)
 

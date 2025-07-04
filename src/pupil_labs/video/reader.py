@@ -544,10 +544,11 @@ class Reader(Generic[ReaderFrameType]):
             return self._stream.frames
         return len(self.pts)
 
-    def _demux(self) -> Iterator[av.packet.Packet]:
+    def _demux(self) -> Iterator[av.packet.Packet]:  # noqa: C901
         """Demuxed packets from the stream"""
         logger = self._get_logger(f"{Reader._demux.__name__}()")
         logpackets = logger and logger.debug
+        logreorder = logger and logger.warning
         stream_time_base = (
             float(self._stream.time_base) if self._stream.time_base is not None else 1
         )
@@ -561,10 +562,35 @@ class Reader(Generic[ReaderFrameType]):
                     and packet.dts > self._partial_dts[-1]
                 )
                 if is_new_dts:
-                    self._partial_pts.append(packet.pts)
                     self._partial_dts.append(packet.dts)
-                    self._partial_pts_to_index[packet.pts] = len(self._partial_dts) - 1
 
+                    if not self._partial_pts or packet.pts >= self._partial_pts[-1]:
+                        self._partial_pts.append(packet.pts)
+                        self._partial_pts_to_index[packet.pts] = (
+                            len(self._partial_dts) - 1
+                        )
+                    else:
+                        logreorder and logreorder(
+                            "  fixing out of order pts: "
+                            f"{packet.pts} < {self._partial_pts[-1]}"
+                        )
+                        logpackets and logpackets(
+                            f"  current pts head: {self._partial_pts[-5:]}"
+                        )
+                        # handles cases when pts come out of order (eg. B-frames)
+                        for i in range(len(self._partial_pts)):
+                            previous_pts = self._partial_pts[-1 - i]
+                            if packet.pts >= previous_pts:
+                                # put the pts in the right place
+                                self._partial_pts.insert(-i, packet.pts)
+
+                                # fix pts => index mapping for all frames after
+                                for j in range(-1 - i, len(self._partial_pts)):
+                                    self._partial_pts_to_index[self._partial_pts[j]] = j
+                                break
+                        logpackets and logpackets(
+                            f"  ordered pts head: {self._partial_pts[-5:]}"
+                        )
             prev_packet_dts = packet.dts
             self._is_at_start = False
 
