@@ -780,6 +780,10 @@ class Reader(Generic[ReaderFrameType]):
             return self._stream.height
         return None
 
+    @property
+    def time_base(self):
+        return self._stream.time_base
+
     def __iter__(self) -> Iterator[ReaderFrameType]:
         # we iter like this to avoid calling len
         i = 0
