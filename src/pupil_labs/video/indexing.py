@@ -8,7 +8,7 @@ from pupil_labs.video.array_like import ArrayLike
 
 IndexerValue = TypeVar("IndexerValue", covariant=True)
 IndexerKey = np.uint32 | np.int32 | np.uint64 | np.int64 | np.float64 | int | float
-IndexerKeys = npt.NDArray[np.float64 | np.int64] | list[int | float]
+IndexerKeys = npt.NDArray[np.float64 | np.int64] | list[int] | list[float]
 
 
 class Indexer(Generic[IndexerValue]):
