@@ -13,7 +13,6 @@ from typing import (
     Any,
     Generic,
     Literal,
-    Optional,
     cast,
     overload,
 )
@@ -80,7 +79,7 @@ class Reader(Generic[ReaderFrameType]):
         self: "Reader[VideoFrame]",
         source: Path | str,
         stream: Literal["video"] = "video",
-        container_timestamps: Optional[ContainerTimestamps | list[float]] | None = None,
+        container_timestamps: ContainerTimestamps | list[float] | None | None = None,
         logger: Logger | None = None,
     ) -> None: ...
 
@@ -89,7 +88,7 @@ class Reader(Generic[ReaderFrameType]):
         self: "Reader[AudioFrame]",
         source: Path | str,
         stream: Literal["audio"] = "audio",
-        container_timestamps: Optional[ContainerTimestamps | list[float]] | None = None,
+        container_timestamps: ContainerTimestamps | list[float] | None | None = None,
         logger: Logger | None = None,
     ) -> None: ...
 
@@ -98,8 +97,8 @@ class Reader(Generic[ReaderFrameType]):
         source: Path | str,
         stream: Literal["audio", "video"]
         | tuple[Literal["audio", "video"], int] = "video",
-        container_timestamps: Optional[ContainerTimestamps | list[float]] | None = None,
-        logger: Optional[Logger] = None,
+        container_timestamps: ContainerTimestamps | list[float] | None | None = None,
+        logger: Logger | None = None,
     ):
         """Create a reader for a video file.
 
@@ -781,7 +780,7 @@ class Reader(Generic[ReaderFrameType]):
         return None
 
     @property
-    def time_base(self):
+    def time_base(self) -> Fraction | None:
         return self._stream.time_base
 
     def __iter__(self) -> Iterator[ReaderFrameType]:
