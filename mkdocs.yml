@@ -17,9 +17,6 @@ nav:
       - Overview: index.md
       - License: license.md
   - API reference: modules.md
-  - Development:
-      - Contributing: contributing.md
-      - Coverage report: coverage.md
 
 theme:
   name: material
