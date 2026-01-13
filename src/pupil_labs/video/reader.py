@@ -173,7 +173,7 @@ class Reader(Generic[ReaderFrameType]):
         url = self.source
         if isinstance(self.source, UPath):
             try:
-                url = self.source.fs.sign(self.source)
+                url = self.source.fs.sign(self.source, expiration=5 * 3600)
             except NotImplementedError:
                 url = str(url)
         container = av.open(url)  # type: av.container.input.InputContainer
