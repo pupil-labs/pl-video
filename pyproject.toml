@@ -29,8 +29,13 @@ Documentation = "https://pupil-labs.github.io/pl-video"
 Repository = "https://github.com/pupil-labs/pl-video"
 Issues = "https://github.com/pupil-labs/pl-video/issues"
 
-[tool.uv]
-dev-dependencies = [
+
+[build-system]
+requires = ["hatchling", "uv-dynamic-versioning"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
     "pytest>=8.2",
     "pre-commit>=2.20.0",
     "mypy>=1.15.0",
@@ -39,9 +44,7 @@ dev-dependencies = [
     "pytest-cov>=4.0.0",
 
     # stubs
-    # "opencv-stubs",
-    # "types-protobuf",
-    # "pandas-stubs",
+    "opencv-stubs",
 
     # docs
     "markdown-callouts>=0.4",
@@ -60,10 +63,6 @@ dev-dependencies = [
     "tqdm>=4.66.5",
     "types-tqdm>=4.66",
 ]
-
-[build-system]
-requires = ["hatchling", "uv-dynamic-versioning"]
-build-backend = "hatchling.build"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
