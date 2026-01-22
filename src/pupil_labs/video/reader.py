@@ -78,10 +78,14 @@ class PrefixingLoggerAdapter(LoggerAdapter):
 class SortableFrame:
     av_frame: AVFrame
 
-    def __lt__(self, other: "SortableFrame"):
+    def __lt__(self, other: "SortableFrame") -> bool:
+        if other.av_frame.pts is None or self.av_frame.pts is None:
+            raise ValueError("frames must have pts")
         return self.av_frame.pts < other.av_frame.pts
 
-    def __gt__(self, other: "SortableFrame"):
+    def __gt__(self, other: "SortableFrame") -> bool:
+        if other.av_frame.pts is None or self.av_frame.pts is None:
+            raise ValueError("frames must have pts")
         return self.av_frame.pts > other.av_frame.pts
 
 
@@ -661,18 +665,18 @@ class Reader(Generic[ReaderFrameType]):
             yield frame.av_frame
         for packet in self._demux():
             try:
-                frames = cast(list[AVFrame], packet.decode())
+                av_frames = cast(list[AVFrame], packet.decode())
             except av.error.EOFError as e:
                 # this shouldn't happen but if it does, handle it
                 if self.logger:
                     self.logger.warning(f"reached end of file: {e}")
                 break
             else:
-                log_decoded and log_decoded(f"  decoded packet frames: {frames}")
-                self.stats.decodes += len(frames)
+                log_decoded and log_decoded(f"  decoded packet frames: {av_frames}")
+                self.stats.decodes += len(av_frames)
 
-            for frame in frames:
-                heapq.heappush(self._decoder_frame_buffer, SortableFrame(frame))
+            for av_frame in av_frames:
+                heapq.heappush(self._decoder_frame_buffer, SortableFrame(av_frame))
 
             # if we don't consume it entirely, will happen on next iteration of .decoder
             if len(self._decoder_frame_buffer) > self._reorder_buffer_size:

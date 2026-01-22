@@ -143,7 +143,7 @@ def av_frame_to_ndarray_fast(
                 # is limited from 16-235 instead of converted to full range 0-255
                 # this is done for performance reasons
                 # gray = limited_yuv420p_to_full(gray)
-            result = gray  # type: ignore
+            result = gray
 
     elif pixel_format in ("bgr24", "rgb24") and av_frame.format.name == pixel_format:
         plane = av_frame.planes[0]
