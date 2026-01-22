@@ -1,3 +1,4 @@
+import heapq
 import sys
 from bisect import bisect_right
 from collections import deque
@@ -73,6 +74,17 @@ class PrefixingLoggerAdapter(LoggerAdapter):
         return f"[{self.prefix}] {msg}", kwargs
 
 
+@dataclass
+class SortableFrame:
+    av_frame: AVFrame
+
+    def __lt__(self, other: "SortableFrame"):
+        return self.av_frame.pts < other.av_frame.pts
+
+    def __gt__(self, other: "SortableFrame"):
+        return self.av_frame.pts > other.av_frame.pts
+
+
 class Reader(Generic[ReaderFrameType]):
     @overload
     def __init__(
@@ -139,9 +151,10 @@ class Reader(Generic[ReaderFrameType]):
         self._partial_dts = list[int]()
         self._partial_pts_to_index = dict[int, int]()
         self._all_pts_are_loaded = False
-        self._decoder_frame_buffer = deque[AVFrame]()
+        self._decoder_frame_buffer = list[SortableFrame]()
         self._current_decoder_index: int | None = -1
         self._indexed_frames_buffer: deque[ReaderFrameType] = deque(maxlen=1000)
+        self._reorder_buffer_size = 10
         # TODO(dan): can we avoid it?
         # this forces loading the gopsize on initialization to set the buffer length
         assert self.gop_size
@@ -543,7 +556,7 @@ class Reader(Generic[ReaderFrameType]):
             return self._stream.frames
         return len(self.pts)
 
-    def _demux(self) -> Iterator[av.packet.Packet]:  # noqa: C901
+    def _demux(self) -> Iterator[av.packet.Packet]:
         """Demuxed packets from the stream"""
         logger = self._get_logger(f"{Reader._demux.__name__}()")
         logpackets = logger and logger.debug
@@ -576,17 +589,16 @@ class Reader(Generic[ReaderFrameType]):
                         logpackets and logpackets(
                             f"  current pts head: {self._partial_pts[-5:]}"
                         )
-                        # handles cases when pts come out of order (eg. B-frames)
-                        for i in range(len(self._partial_pts)):
-                            previous_pts = self._partial_pts[-1 - i]
-                            if packet.pts >= previous_pts:
-                                # put the pts in the right place
-                                self._partial_pts.insert(-i, packet.pts)
 
-                                # fix pts => index mapping for all frames after
-                                for j in range(-1 - i, len(self._partial_pts)):
-                                    self._partial_pts_to_index[self._partial_pts[j]] = j
-                                break
+                        # handles cases when pts come out of order (eg. B-frames)
+                        # find insertion position (keeps list sorted)
+                        idx = bisect_right(self._partial_pts, packet.pts)
+                        self._partial_pts.insert(idx, packet.pts)
+
+                        # fix pts => index mapping for all frames after
+                        for j in range(idx, len(self._partial_pts)):
+                            self._partial_pts_to_index[self._partial_pts[j]] = j
+
                         logpackets and logpackets(
                             f"  ordered pts head: {self._partial_pts[-5:]}"
                         )
@@ -644,10 +656,9 @@ class Reader(Generic[ReaderFrameType]):
 
         while self._decoder_frame_buffer:
             # here we yield unconsumed frames from the previously packet decode
-            frame = self._decoder_frame_buffer.popleft()
-            log_decoded and log_decoded(f"  yielding previous packet frame: {frame}")
-            yield frame
-
+            frame = heapq.heappop(self._decoder_frame_buffer)
+            log_decoded and log_decoded(f"  yielding current packet frame: {frame}")
+            yield frame.av_frame
         for packet in self._demux():
             try:
                 frames = cast(list[AVFrame], packet.decode())
@@ -660,14 +671,20 @@ class Reader(Generic[ReaderFrameType]):
                 log_decoded and log_decoded(f"  decoded packet frames: {frames}")
                 self.stats.decodes += len(frames)
 
-            # add all the decoded frames to the buffer first
-            self._decoder_frame_buffer.extend(frames)
+            for frame in frames:
+                heapq.heappush(self._decoder_frame_buffer, SortableFrame(frame))
 
             # if we don't consume it entirely, will happen on next iteration of .decoder
-            while self._decoder_frame_buffer:
-                frame = self._decoder_frame_buffer.popleft()
+            if len(self._decoder_frame_buffer) > self._reorder_buffer_size:
+                frame = heapq.heappop(self._decoder_frame_buffer)
                 log_decoded and log_decoded(f"  yielding current packet frame: {frame}")
-                yield frame
+                yield frame.av_frame
+
+        # decode the tail if we reach end
+        while self._decoder_frame_buffer:
+            frame = heapq.heappop(self._decoder_frame_buffer)
+            log_decoded and log_decoded(f"  yielding current packet frame: {frame}")
+            yield frame.av_frame
 
     def __next__(self) -> ReaderFrameType:
         return next(self._frame_generator())

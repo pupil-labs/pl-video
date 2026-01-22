@@ -136,13 +136,13 @@ def test_pts(reader: Reader[VideoFrame], correct_data: PacketData) -> None:
 
 
 def test_iteration(reader: Reader[VideoFrame], correct_data: PacketData) -> None:
-    frame_count = 0
+    collected_pts = []
     for frame, expected_pts in measure_fps(zip(reader, correct_data.video_pts)):
         assert frame.pts == expected_pts
-        assert frame.index == frame_count
-        frame_count += 1
+        assert frame.index == len(collected_pts)
+        collected_pts.append(frame.pts)
     assert reader.stats.seeks == 1
-    assert frame_count == len(correct_data.video_pts)
+    assert len(collected_pts) == len(correct_data.video_pts)
 
 
 def test_backward_iteration_from_end(
@@ -272,7 +272,7 @@ def test_seek_avoidance_arbitrary_seek(
     reader: Reader[VideoFrame], correct_data: PacketData
 ) -> None:
     reader[correct_data.gop_size * 2]
-    assert reader.stats.decodes <= correct_data.gop_size
+    assert reader.stats.decodes <= correct_data.gop_size + reader._reorder_buffer_size
 
     expected_seeks = 0
     expected_seeks += 1  # seek to get pts
@@ -291,24 +291,24 @@ def test_seek_avoidance(reader: Reader[VideoFrame], correct_data: PacketData) ->
 
     reader[0]
     assert reader.stats.seeks == expected_seeks
-    assert reader.stats.decodes == 1
+    assert reader.stats.decodes == 1 + reader._reorder_buffer_size
 
     # a second access will load the frame from buffer and not seek/decode
     reader[0]
     assert reader.stats.seeks == expected_seeks
-    assert reader.stats.decodes == 1
+    assert reader.stats.decodes == 1 + reader._reorder_buffer_size
 
     # getting the second frame will also not require a seek
     reader[1]
     assert reader.stats.seeks == expected_seeks
-    assert reader.stats.decodes == 2
+    assert reader.stats.decodes == 2 + reader._reorder_buffer_size
 
     # moving forward in same keyframe's worth of frames won't seek
     frames = reader[10:20]
     assert len(frames) == 10
     assert [f.pts for f in frames] == correct_data.video_pts[10:20]
 
-    assert reader.stats.decodes == 20
+    assert reader.stats.decodes == 20 + reader._reorder_buffer_size
 
     assert reader.stats.seeks == expected_seeks
 
@@ -318,10 +318,10 @@ def test_seek_avoidance(reader: Reader[VideoFrame], correct_data: PacketData) ->
     assert frame.index == gop_size
 
     if reader._stream.name == "mjpeg":
-        assert reader.stats.decodes == 20
+        assert reader.stats.decodes == 20 + reader._reorder_buffer_size
         # expected_seeks += 1
     else:
-        assert reader.stats.decodes == gop_size + 1
+        assert reader.stats.decodes == gop_size + 1 + reader._reorder_buffer_size
 
     assert reader.stats.seeks == expected_seeks
 
@@ -448,7 +448,7 @@ def test_consuming_lazy_frame_slice(
 
         assert count == num_wanted_frames
         assert reader.stats.seeks == 2  # one to load pts, one to seek back
-        assert reader.stats.decodes == num_wanted_frames
+        assert reader.stats.decodes == num_wanted_frames + reader._reorder_buffer_size
 
     else:
         assert correct_data.gop_size > 30
@@ -472,7 +472,9 @@ def test_consuming_lazy_frame_slice(
 
         # the slice started 10 frames after a keyframe so we expect to decode frames
         # after the keyframe as well as the ones in the slice range
-        assert reader.stats.decodes == num_wanted_frames + 10
+        assert (
+            reader.stats.decodes == num_wanted_frames + 10 + reader._reorder_buffer_size
+        )
 
 
 def test_arbitrary_index(reader: Reader[VideoFrame], correct_data: PacketData) -> None:
@@ -486,6 +488,7 @@ def test_access_previous_keyframe(
     reader: Reader[VideoFrame], correct_data: PacketData
 ) -> None:
     frame = reader[correct_data.gop_size]
+    assert reader.stats.decodes == 1 + reader._reorder_buffer_size
     index = frame.index
     assert reader.stats.seeks == 1  # one to get pts for frame
     frame = reader[correct_data.gop_size - 1]
@@ -493,7 +496,9 @@ def test_access_previous_keyframe(
     assert reader.stats.seeks == 2  # seek to previous keyframe
 
     # expect to decode one of the second keyframe plus all of the previous one
-    assert reader.stats.decodes == correct_data.gop_size + 1
+    assert reader.stats.decodes == correct_data.gop_size + 1 + (
+        2 * reader._reorder_buffer_size
+    )
 
 
 def test_access_frame_before_next_keyframe(
