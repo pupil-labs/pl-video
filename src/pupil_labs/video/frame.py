@@ -114,6 +114,7 @@ def av_frame_to_ndarray_fast(
 
     Skipping conversion by using buffers directly if possible for performance.
     """
+    result: Any
     if pixel_format == "gray":
         if av_frame.format.name == "gray":
             result = np.frombuffer(
@@ -156,14 +157,14 @@ def av_frame_to_ndarray_fast(
             image = image.reshape(-1, plane.line_size)
             image = image[:, : 3 * av_frame.width]
             # image = np.ascontiguousarray(image)
-            result = image.reshape(av_frame.height, av_frame.width, 3)  # type: ignore
+            result = image.reshape(av_frame.height, av_frame.width, 3)
         else:
             buf = np.frombuffer(cast(memoryview, av_frame.planes[0]), np.uint8)
-            result = buf.reshape(av_frame.height, av_frame.width, 3)  # type: ignore
+            result = buf.reshape(av_frame.height, av_frame.width, 3)
     else:
-        result = av_frame.to_ndarray(format=pixel_format)  # type: ignore
+        result = av_frame.to_ndarray(format=pixel_format)
 
-    return result
+    return cast(npt.NDArray[np.uint8], result)
 
 
 ReaderFrameType = TypeVar(
