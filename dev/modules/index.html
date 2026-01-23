@@ -1998,7 +1998,8 @@ entire video to obtain PTS.</p>
 <span class="normal">161</span>
 <span class="normal">162</span>
 <span class="normal">163</span>
-<span class="normal">164</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+<span class="normal">164</span>
+<span class="normal">165</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">source</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">stream</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;audio&quot;</span><span class="p">,</span> <span class="s2">&quot;video&quot;</span><span class="p">]</span>
@@ -2043,6 +2044,7 @@ entire video to obtain PTS.</p>
     <span class="bp">self</span><span class="o">.</span><span class="n">_last_processed_dts</span> <span class="o">=</span> <span class="o">-</span><span class="n">maxsize</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_partial_pts</span> <span class="o">=</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]()</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_partial_dts</span> <span class="o">=</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_partial_dts_to_index</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]()</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_partial_pts_to_index</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]()</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_all_pts_are_loaded</span> <span class="o">=</span> <span class="kc">False</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_decoder_frame_buffer</span> <span class="o">=</span> <span class="nb">list</span><span class="p">[</span><span class="n">SortableFrame</span><span class="p">]()</span>
