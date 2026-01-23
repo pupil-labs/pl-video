@@ -16,11 +16,11 @@ class BaseFrame:
     av_frame: av.audio.frame.AudioFrame | av.video.frame.VideoFrame
     "the original av.AudioFrame or av.VideoFrame for this frame"
 
-    time: float
-    "timestamp of frame"
-
     index: int
     "index of frame"
+
+    time: float
+    "timestamp of frame"
 
     source: Any
     "source of this frame, eg. reader or filename"

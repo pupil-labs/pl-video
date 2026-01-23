@@ -543,8 +543,8 @@ class Reader(Generic[ReaderFrameType]):
                     ReaderFrameType,
                     VideoFrame(
                         av_frame=av_frame,
-                        time=frame_timestamp,
                         index=self._current_decoder_index,
+                        time=frame_timestamp,
                         source=self,
                     ),
                 )
@@ -554,8 +554,8 @@ class Reader(Generic[ReaderFrameType]):
                     ReaderFrameType,
                     AudioFrame(
                         av_frame=av_frame,
-                        time=frame_timestamp,
                         index=self._current_decoder_index,
+                        time=frame_timestamp,
                         source=self,
                     ),
                 )
