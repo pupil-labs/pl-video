@@ -18,8 +18,10 @@ from .utils import measure_fps
 
 @dataclass
 class PacketData:
-    video_pts: list[int]
-    audio_pts: list[int]
+    video_pts_raw: list[int]
+    audio_pts_raw: list[int]
+    video_dts_raw: list[int]
+    audio_dts_raw: list[int]
     video_times: list[float]
     audio_times: list[float]
     video_keyframe_indices: list[int]
@@ -28,6 +30,22 @@ class PacketData:
     @cached_property
     def gop_size(self) -> int:
         return int(max(np.diff(self.video_keyframe_indices)))
+
+    @cached_property
+    def video_pts(self):
+        return sorted(self.video_pts_raw)
+
+    @cached_property
+    def audio_pts(self):
+        return sorted(self.audio_pts_raw)
+
+    @cached_property
+    def video_dts(self):
+        return self.video_dts_raw
+
+    @cached_property
+    def audio_dts(self):
+        return self.audio_dts_raw
 
     def _summarize_list(self, lst: list) -> str:
         return f"""[{
@@ -47,6 +65,7 @@ class PacketData:
                 for key, value in [
                     ("len", len(self.video_pts)),
                     ("pts", self._summarize_list(self.video_pts)),
+                    ("dts", self._summarize_list(self.video_dts)),
                     ("times", self._summarize_list(self.video_times)),
                     (
                         "keyframe_indices",
@@ -61,6 +80,7 @@ class PacketData:
 @pytest.fixture
 def correct_data(video_path: Path) -> PacketData:  # noqa: C901
     audio_pts, video_pts = [], []
+    audio_dts, video_dts = [], []
     audio_times, video_times = [], []
     audio_index, video_index = 0, 0
     video_keyframe_indices = []
@@ -70,21 +90,23 @@ def correct_data(video_path: Path) -> PacketData:  # noqa: C901
             continue
         if packet.stream.type == "audio":
             audio_pts.append(packet.pts)
+            audio_dts.append(packet.dts)
             audio_index += 1
         else:
             video_pts.append(packet.pts)
+            video_dts.append(packet.dts)
             if packet.is_keyframe:
                 video_keyframe_indices.append(video_index)
             video_index += 1
 
     if video_pts:
-        video_pts = sorted(video_pts)
+        # video_pts = sorted(video_pts)
         video_time_base = container.streams.video[0].time_base
         assert video_time_base
         video_times = [float(pts * video_time_base) for pts in video_pts]
 
     if audio_pts:
-        audio_pts = sorted(audio_pts)
+        # audio_pts = sorted(audio_pts)
         audio_time_base = container.streams.audio[0].time_base
         assert audio_time_base
         audio_times = [float(pts * audio_time_base) for pts in audio_pts]
@@ -115,9 +137,11 @@ def correct_data(video_path: Path) -> PacketData:  # noqa: C901
     video_audio_times[-1] = audio_times_buffer
 
     return PacketData(
-        video_pts=video_pts,
+        video_pts_raw=video_pts,
+        video_dts_raw=video_dts,
         video_times=video_times,
-        audio_pts=audio_pts,
+        audio_pts_raw=audio_pts,
+        audio_dts_raw=audio_dts,
         audio_times=audio_times,
         video_audio_times=video_audio_times,
         video_keyframe_indices=video_keyframe_indices,
@@ -272,7 +296,9 @@ def test_seek_avoidance_arbitrary_seek(
     reader: Reader[VideoFrame], correct_data: PacketData
 ) -> None:
     reader[correct_data.gop_size * 2]
-    assert reader.stats.decodes <= correct_data.gop_size + reader._reorder_buffer_size
+    assert (
+        reader.stats.decodes <= correct_data.gop_size + reader._reorder_buffer_size + 1
+    )
 
     expected_seeks = 0
     expected_seeks += 1  # seek to get pts

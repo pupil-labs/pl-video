@@ -153,6 +153,7 @@ class Reader(Generic[ReaderFrameType]):
         self._last_processed_dts = -maxsize
         self._partial_pts = list[int]()
         self._partial_dts = list[int]()
+        self._partial_dts_to_index = dict[int, int]()
         self._partial_pts_to_index = dict[int, int]()
         self._all_pts_are_loaded = False
         self._decoder_frame_buffer = list[SortableFrame]()
@@ -281,10 +282,17 @@ class Reader(Generic[ReaderFrameType]):
 
         self._container.seek(pts, stream=self._stream)
         self.stats.seeks += 1
+
+        index = "?"
+        if pts in self._partial_dts_to_index:
+            index = str(self._partial_dts_to_index[pts])
+        elif pts in self._partial_pts_to_index:
+            index = str(self._partial_pts_to_index[pts])
+
         logger and logger.warning(
             "seeked to: "
             + ", ".join([
-                f"index={self._partial_pts_to_index[pts]}",
+                f"index={index}",
                 f"pts={pts}",
                 f"{self.stats}",
             ])
@@ -314,7 +322,7 @@ class Reader(Generic[ReaderFrameType]):
         logger and logger.info(f"seeking to index: {index}")
         pts = 0
         # TODO(dan): we can skip a seek if current decoder packet pts matches
-        if 0 < index >= len(self._partial_pts):
+        if 0 < index >= len(self._partial_dts):
             logger and logger.debug(f"index {index} not in loaded packets, loading..")
             pts = self._load_packets_till_index(index)
         elif index != 0:
@@ -340,11 +348,11 @@ class Reader(Generic[ReaderFrameType]):
         )
         logger and logger.warning(
             f"getting packets till index:{index}"
-            f", current max index: {len(self._partial_pts) - 1}"
+            f", current max index: {len(self._partial_dts) - 1}"
         )
         assert index >= -1
-        if index != -1 and index < len(self._partial_pts):
-            pts = self._partial_pts[index]
+        if index != -1 and index < len(self._partial_dts):
+            pts = self._partial_dts[index]
             logger and logger.warning(f"found:{pts}")
             return pts
 
@@ -352,13 +360,13 @@ class Reader(Generic[ReaderFrameType]):
             last_pts = self._partial_pts[-1] if self._partial_pts else 0
             self._seek_to_pts(last_pts)
             for packet in self._demux():
-                if packet.pts is None:
+                if packet.dts is None:
                     continue
-                packet_index = self._partial_pts_to_index[packet.pts]
+                packet_index = self._partial_dts_to_index[packet.dts]
                 if index != -1 and packet_index == index:
                     break
             if logger:
-                logger.info(f"current max packet index: {len(self._partial_pts)}")
+                logger.info(f"current max packet index: {len(self._partial_dts)}")
         return self._partial_pts[index]
 
     @overload
@@ -579,12 +587,14 @@ class Reader(Generic[ReaderFrameType]):
                 )
                 if is_new_dts:
                     self._partial_dts.append(packet.dts)
+                    self._partial_dts_to_index[packet.dts] = len(self._partial_dts) - 1
 
-                    if not self._partial_pts or packet.pts >= self._partial_pts[-1]:
-                        self._partial_pts.append(packet.pts)
+                    if packet.pts not in self._partial_pts_to_index:
                         self._partial_pts_to_index[packet.pts] = (
                             len(self._partial_dts) - 1
                         )
+                    if not self._partial_pts or packet.pts >= self._partial_pts[-1]:
+                        self._partial_pts.append(packet.pts)
                     else:
                         logreorder and logreorder(
                             "  fixing out of order pts: "
@@ -603,16 +613,20 @@ class Reader(Generic[ReaderFrameType]):
                         for j in range(idx, len(self._partial_pts)):
                             self._partial_pts_to_index[self._partial_pts[j]] = j
 
+                        # for j in range(idx, len(self._partial_dts)):
+                        #     self._partial_dts_to_index[self._partial_dts[j]] = j
+
                         logpackets and logpackets(
                             f"  ordered pts head: {self._partial_pts[-5:]}"
                         )
+
             prev_packet_dts = packet.dts
             self._is_at_start = False
 
             if logpackets:
                 index_str = " "
                 if packet.pts is not None:
-                    index_str = f"{self._partial_pts_to_index.get(packet.pts, '?')}"
+                    index_str = f"{self._partial_dts_to_index.get(packet.pts, '?')}"
                 packet_time_str = "      "
                 if packet.pts is not None:
                     packet_time_str = f"{packet.pts * stream_time_base:.3f}s"
@@ -658,11 +672,13 @@ class Reader(Generic[ReaderFrameType]):
         logger = self._get_logger(f"{Reader._av_frame_decoder.attrname}()")  # type: ignore
         log_decoded = logger and logger.debug
 
-        while self._decoder_frame_buffer:
-            # here we yield unconsumed frames from the previously packet decode
-            frame = heapq.heappop(self._decoder_frame_buffer)
-            log_decoded and log_decoded(f"  yielding current packet frame: {frame}")
-            yield frame.av_frame
+        if len(self._decoder_frame_buffer) > self._reorder_buffer_size:
+            while self._decoder_frame_buffer:
+                # here we yield unconsumed frames from the previously packet decode
+                frame = heapq.heappop(self._decoder_frame_buffer)
+                log_decoded and log_decoded(f"  yielding current packet frame: {frame}")
+                yield frame.av_frame
+
         for packet in self._demux():
             try:
                 av_frames = cast(list[AVFrame], packet.decode())
@@ -677,7 +693,6 @@ class Reader(Generic[ReaderFrameType]):
 
             for av_frame in av_frames:
                 heapq.heappush(self._decoder_frame_buffer, SortableFrame(av_frame))
-
             # if we don't consume it entirely, will happen on next iteration of .decoder
             if len(self._decoder_frame_buffer) > self._reorder_buffer_size:
                 frame = heapq.heappop(self._decoder_frame_buffer)
