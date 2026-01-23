@@ -602,6 +602,7 @@ class Reader(Generic[ReaderFrameType]):
         for packet in self._container.demux(self._stream):
             is_new_dts = False
             if packet.pts is not None:
+                assert packet.dts is not None
                 is_new_dts = (self._is_at_start and not self._partial_dts) or (
                     len(self._partial_dts) > 0
                     and self._partial_dts[-1] == prev_packet_dts
