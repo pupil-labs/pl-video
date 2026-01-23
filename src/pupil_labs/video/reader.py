@@ -719,14 +719,12 @@ class Reader(Generic[ReaderFrameType]):
             if len(self._decoder_frame_buffer) > self._reorder_buffer_size:
                 frame = heapq.heappop(self._decoder_frame_buffer)
                 log_decoded and log_decoded(f"  yielding current packet frame: {frame}")
-                self.logger.warn(f"dts:{frame.av_frame.dts}")
                 yield frame.av_frame
 
         # decode the tail if we reach end
         while self._decoder_frame_buffer:
             frame = heapq.heappop(self._decoder_frame_buffer)
             log_decoded and log_decoded(f"  yielding current packet frame: {frame}")
-            self.logger.warn(f"dts:{frame.av_frame.dts}")
             yield frame.av_frame
 
     def __next__(self) -> ReaderFrameType:
