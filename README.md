@@ -8,6 +8,8 @@
 [![pypi version](https://img.shields.io/pypi/v/pupil-labs-video.svg)](https://pypi.org/project/pupil-labs-video/)
 [![python version](https://img.shields.io/pypi/pyversions/pupil-labs-video)](https://pypi.org/project/pupil-labs-video/)
 
+[![pl-video banner](https://raw.githubusercontent.com/pupil-labs/pl-video/refs/heads/main/docs/assets/banner.png)](https://pupil-labs.com/)
+
 A high-level wrapper of [PyAV](https://github.com/PyAV-Org/PyAV) providing an easy to use interface to video data.
 
 The goal of this library is to provide a simple interface while maintaining good computational performance. At current, only MP4 and MJPEG videos are officially compatible.
