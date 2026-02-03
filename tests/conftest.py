@@ -46,6 +46,7 @@ def pytest_generate_tests(metafunc: Any) -> None:
         TEST_DATA_PATH / "PI Scene Camera - audio off.mp4",
         TEST_DATA_PATH / "out_of_order_pts.mp4",
         TEST_DATA_PATH / "duplicate_pts.mp4",
+        TEST_DATA_PATH / "silently_skipped_corrupt_frame.mp4",
     ]
 
     standard_videos = [main_video, *videos_with_audio, *videos_other, *videos_mjpeg]

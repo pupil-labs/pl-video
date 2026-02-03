@@ -22,7 +22,6 @@ import av.audio
 import av.container
 import av.error
 import av.packet
-import av.stream
 import av.video
 import numpy as np
 import numpy.typing as npt
@@ -533,14 +532,6 @@ class Reader(Generic[ReaderFrameType]):
             assert av_frame.pts is not None
             assert av_frame.time is not None
 
-            if av_frame.pts in self._partial_pts_to_index:
-                frame_index = self._partial_pts_to_index[av_frame.pts]
-                if frame_index == self._current_decoder_index:
-                    frame_index += 1
-                self._current_decoder_index = frame_index
-            # if av_frame.dts in self._partial_dts_to_index:
-            #     self._current_decoder_index = self._partial_dts_to_index[av_frame.dts]
-
             frame_timestamp = av_frame.time
             if self._times_were_provided:
                 if self._current_decoder_index is not None:
@@ -556,7 +547,7 @@ class Reader(Generic[ReaderFrameType]):
                     frame_index = np.searchsorted(
                         self.container_timestamps, scaled_time, side="right"
                     )
-                    frame_timestamp = self.container_timestamps[frame_index]
+                    frame_timestamp = float(self.container_timestamps[frame_index])
                     self._current_decoder_index = int(frame_index)
 
             if isinstance(av_frame, av.video.frame.VideoFrame):
@@ -666,11 +657,11 @@ class Reader(Generic[ReaderFrameType]):
         self._all_pts_are_loaded = True
 
     @cached_property
-    def _av_frame_decoder(self) -> Iterator[AVFrame]:
+    def _av_frame_decoder(self) -> Iterator[AVFrame]:  # noqa: C901
         """Yields decoded av frames from the stream
 
         This wraps the multithreaded av decoder in order to workaround the way pyav
-        returns packets/frames in that case; it delays returning the first frame
+        returns packets/frames in that case; pyav delays returning the first frame
         and yields multiple frames for the last decoded packet, which means:
 
         - the decoded frame does not match the demuxed packet per iteration
@@ -695,12 +686,46 @@ class Reader(Generic[ReaderFrameType]):
         logger = self._get_logger(f"{Reader._av_frame_decoder.attrname}()")  # type: ignore
         log_decoded = logger and logger.debug
 
+        def _pop_buffer() -> Iterator[AVFrame]:
+            av_frame = heapq.heappop(self._decoder_frame_buffer).av_frame
+
+            if av_frame.pts is not None:
+                decoded_index = self._partial_pts_to_index[av_frame.pts]
+
+                # TODO(dan): this is fragile, better to look at dts instead
+                if self._indexed_frames_buffer:
+                    most_recent_indexed_frame = self._indexed_frames_buffer[-1]
+                    if most_recent_indexed_frame.index == decoded_index:
+                        # handle frame index when duplicate pts encountered
+                        decoded_index += 1
+
+                if (
+                    isinstance(av_frame, av.VideoFrame)
+                    and self._current_decoder_index is not None
+                    and self._current_decoder_index + 1 != decoded_index
+                ):
+                    for missing_idx in range(
+                        self._current_decoder_index + 1, decoded_index
+                    ):
+                        logger and logger.warning(
+                            f"generating missing index:{missing_idx}"
+                        )
+                        dup_frame = av.VideoFrame.from_ndarray(
+                            cast(npt.NDArray[np.uint8], av_frame.to_ndarray()),
+                            format=av_frame.format.name,
+                        )
+                        dup_frame.pts = self._partial_pts[missing_idx]
+                        dup_frame.time_base = av_frame.time_base
+                        self._current_decoder_index = missing_idx
+                        yield dup_frame
+
+                self._current_decoder_index = decoded_index
+                yield av_frame
+
         if len(self._decoder_frame_buffer) > self._reorder_buffer_size:
             while self._decoder_frame_buffer:
                 # here we yield unconsumed frames from the previously packet decode
-                frame = heapq.heappop(self._decoder_frame_buffer)
-                log_decoded and log_decoded(f"  yielding current packet frame: {frame}")
-                yield frame.av_frame
+                yield from _pop_buffer()
 
         for packet in self._demux():
             try:
@@ -718,15 +743,11 @@ class Reader(Generic[ReaderFrameType]):
                 heapq.heappush(self._decoder_frame_buffer, SortableFrame(av_frame))
             # if we don't consume it entirely, will happen on next iteration of .decoder
             if len(self._decoder_frame_buffer) > self._reorder_buffer_size:
-                frame = heapq.heappop(self._decoder_frame_buffer)
-                log_decoded and log_decoded(f"  yielding current packet frame: {frame}")
-                yield frame.av_frame
+                yield from _pop_buffer()
 
         # decode the tail if we reach end
         while self._decoder_frame_buffer:
-            frame = heapq.heappop(self._decoder_frame_buffer)
-            log_decoded and log_decoded(f"  yielding current packet frame: {frame}")
-            yield frame.av_frame
+            yield from _pop_buffer()
 
     def __next__(self) -> ReaderFrameType:
         return next(self._frame_generator())

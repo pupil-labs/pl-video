@@ -15,6 +15,8 @@ from pupil_labs.video.reader import Reader
 
 from .utils import measure_fps
 
+SILENTLY_SKIPPED_CORRUPT_FRAME_MP4 = "silently_skipped_corrupt_frame.mp4"
+
 
 @dataclass
 class PacketData:
@@ -29,6 +31,8 @@ class PacketData:
 
     @cached_property
     def gop_size(self) -> int:
+        if len(self.video_keyframe_indices) == 1:
+            return len(self.video_pts) + 1
         return int(max(np.diff(self.video_keyframe_indices)))
 
     @cached_property
@@ -161,10 +165,12 @@ def test_pts(reader: Reader[VideoFrame], correct_data: PacketData) -> None:
 
 def test_iteration(reader: Reader[VideoFrame], correct_data: PacketData) -> None:
     collected_pts = []
+    collected_idxs = []
     for frame, expected_pts in measure_fps(zip(reader, correct_data.video_pts)):
         assert frame.pts == expected_pts
         assert frame.index == len(collected_pts)
         collected_pts.append(frame.pts)
+        collected_idxs.append(frame.index)
     assert reader.stats.seeks == 1
     assert len(collected_pts) == len(correct_data.video_pts)
 
@@ -344,13 +350,17 @@ def test_seek_avoidance(reader: Reader[VideoFrame], correct_data: PacketData) ->
     assert frame.index == gop_size
 
     if reader._stream.name == "mjpeg":
-        assert reader.stats.decodes == 20 + reader._reorder_buffer_size
+        expected_decodes = 20 + reader._reorder_buffer_size
         # expected_seeks += 1
     else:
-        assert reader.stats.decodes == gop_size + 1 + reader._reorder_buffer_size
+        expected_decodes = gop_size + reader._reorder_buffer_size + 1
+
+    if reader.filename == SILENTLY_SKIPPED_CORRUPT_FRAME_MP4:
+        expected_decodes -= 1
+
+    assert reader.stats.decodes == expected_decodes
 
     assert reader.stats.seeks == expected_seeks
-
     # no seek even when getting last frame of that next keyframe
     previous_decodes = reader.stats.decodes
     frame = reader[gop_size * 2 - 1]
@@ -521,10 +531,12 @@ def test_access_previous_keyframe(
     assert frame.index == index - 1
     assert reader.stats.seeks == 2  # seek to previous keyframe
 
+    expected_decodes = correct_data.gop_size + (2 * reader._reorder_buffer_size + 1)
+    if reader.filename == SILENTLY_SKIPPED_CORRUPT_FRAME_MP4:
+        expected_decodes -= 1
+
     # expect to decode one of the second keyframe plus all of the previous one
-    assert reader.stats.decodes == correct_data.gop_size + 1 + (
-        2 * reader._reorder_buffer_size
-    )
+    assert reader.stats.decodes == expected_decodes
 
 
 def test_access_frame_before_next_keyframe(

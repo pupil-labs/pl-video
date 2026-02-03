@@ -1,0 +1,12 @@
+This has a corrupt frame that is silently skipped by pyav when decoding
+
+It is there when demuxing but skipped when decoding, the missing frame is at pts:79596181 (index:220 in packets)
+
+>>> packets=[p.pts for p in av.open('silently_skipped_corrupt_frame.mp4').demux(video=0) if p.pts is not None]
+>>> frames=[p.pts for p in av.open('silently_skipped_corrupt_frame.mp4').decode(video=0) if p.pts is not None]
+>>> len(packets), len(frames)
+(1419, 1418) # 1 more item when demuxing than decoding
+>>> packets[219:222]
+[79595280, 79596181, 79596630] # 79596181 is here at index 220
+>>> frames[219:222]
+[79595280, 79596630, 79597530] # 79596181 is skipped
