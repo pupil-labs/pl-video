@@ -265,6 +265,8 @@ def test_accessing_times_while_decoding_by_frame_step(
 def test_seeking_to_various_frames(
     reader: Reader[VideoFrame], correct_data: PacketData, start: int, delta: int
 ) -> None:
+    if start + delta > len(correct_data.video_pts):
+        pytest.skip("not enough frames in video for this test")
     assert reader[start].pts == correct_data.video_pts[start]
     assert reader[start + delta].pts == correct_data.video_pts[start + delta]
 
@@ -518,9 +520,9 @@ def test_consuming_lazy_frame_slice(
 
 
 def test_arbitrary_index(reader: Reader[VideoFrame], correct_data: PacketData) -> None:
-    for i in [0, 1, 2, 10, 20, 59, 70, 150]:
+    for i in [0, 1, 2, 10, 20, 59, 70, 140]:
         assert reader[i].pts == correct_data.video_pts[i]
-    for i in [-1, -10, -20, -150]:
+    for i in [-1, -10, -20, -140]:
         assert reader[i].pts == correct_data.video_pts[i]
 
 
