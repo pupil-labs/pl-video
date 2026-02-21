@@ -205,12 +205,22 @@ class Reader(Generic[ReaderFrameType]):
     @cached_property
     def _container(self) -> av.container.input.InputContainer:
         url = self.source
+
+        container_format = None
+        for container_format in ["mp4", "mjpeg", "aac"]:
+            if str(self.source).endswith(container_format):
+                break
+
         if isinstance(self.source, UPath):
             try:
                 url = self.source.fs.sign(self.source, expiration=5 * 3600)
             except NotImplementedError:
                 url = str(url)
-        container = av.open(url)  # type: av.container.input.InputContainer
+
+        container = av.open(
+            url,
+            format=container_format,
+        )  # type: av.container.input.InputContainer
         for stream in container.streams.video:
             stream.thread_type = "FRAME"
         return container

@@ -88,7 +88,11 @@ def correct_data(video_path: Path) -> PacketData:  # noqa: C901
     audio_times, video_times = [], []
     audio_index, video_index = 0, 0
     video_keyframe_indices = []
-    container = av.open(str(video_path))
+    container_format = None
+    for container_format in ["mjpeg", "mp4"]:
+        if video_path.suffix.endswith(container_format):
+            break
+    container = av.open(str(video_path), format=container_format)
     for packet in container.demux():
         if packet.pts is None:
             continue

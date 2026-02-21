@@ -1,0 +1,12 @@
+This video fails to open unless explicit format is passed in
+
+```python
+>>> av.open('invalid_format_detect.mjpeg')
+InvalidDataError: [Errno 1094995529] Invalid data found when processing input: 'o.mjpeg'
+```
+
+but works if passing the format
+```python
+>>> av.open('invalid_format_detect.mjpeg', format='mjepg')
+<av.InputContainer 'invalid_format_detect.mjpeg'>
+```
