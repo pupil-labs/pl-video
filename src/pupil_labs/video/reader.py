@@ -745,6 +745,12 @@ class Reader(Generic[ReaderFrameType]):
                 if self.logger:
                     self.logger.warning(f"reached end of file: {e}")
                 break
+            except av.error.InvalidDataError as e:
+                if self.logger:
+                    self.logger.warning(
+                        f"error decoding frame at packet.pts={packet.pts}: {e}"
+                    )
+                av_frames = []
             else:
                 log_decoded and log_decoded(f"  decoded packet frames: {av_frames}")
                 self.stats.decodes += len(av_frames)
