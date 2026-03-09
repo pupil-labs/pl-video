@@ -1,0 +1,25 @@
+This has an out of order frame for pts:300602541 (3340.028233s) in both demux/decode
+
+It appears at index 352 when demuxing, instead of 350, 2 packets later
+It appears at index 365 when decoding, instead of 350, 13 frames later
+
+>>> packets=[p.pts for p in av.open('way_out_of_order_pts.mp4').demux(video=0) if p.pts is not None]
+>>> frames=[p.pts for p in av.open('way_out_of_order_pts.mp4').decode(video=0) if p.pts is not None]
+>>> pl.DataFrame({'packets': np.array(packets)/90000, 'decoded': np.array(frames)/90000}).with_row_index()[348:][:20]
+┌───────┬─────────────┬─────────────┐
+│ index ┆ packets     ┆ decoded     │
+│ ---   ┆ ---         ┆ ---         │
+│ u32   ┆ f64         ┆ f64         │
+╞═══════╪═════════════╪═════════════╡
+│ 348   ┆ 3340.018278 ┆ 3340.018278 │
+│ 349   ┆ 3340.023233 ┆ 3340.023233 │
+│ 350   ┆ 3340.033233 ┆ 3340.033233 │
+│ 351   ┆ 3340.038233 ┆ 3340.038233 │
+│ 352   ┆>3340.028233<┆ 3340.043233 │ <-- appears in demux here, 2 packets late
+│ …     ┆ …           ┆ …           │
+│ 363   ┆ 3340.098233 ┆ 3340.103233 │
+│ 364   ┆ 3340.103233 ┆ 3340.108233 │
+│ 365   ┆ 3340.108233 ┆>3340.028233<│ <-- and decoded frame is delayed by 13 frames
+│ 366   ┆ 3340.113233 ┆ 3340.113233 │
+│ 367   ┆ 3340.118233 ┆ 3340.118233 │
+└───────┴─────────────┴─────────────┘
