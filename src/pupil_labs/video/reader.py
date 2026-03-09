@@ -176,9 +176,12 @@ class Reader(Generic[ReaderFrameType]):
         self._current_decoder_index: int | None = -1
         self._indexed_frames_buffer: deque[ReaderFrameType] = deque(maxlen=1000)
         self._reorder_buffer_size = 10
-        # TODO(dan): can we avoid it?
+
         # this forces loading the gopsize on initialization to set the buffer length
         assert self.gop_size
+
+        # TODO: this can be set to gop size but tests need adapting
+        self._reorder_buffer_size = 35
 
     @property
     def logger(self) -> Logger:
