@@ -1999,7 +1999,10 @@ entire video to obtain PTS.</p>
 <span class="normal">178</span>
 <span class="normal">179</span>
 <span class="normal">180</span>
-<span class="normal">181</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+<span class="normal">181</span>
+<span class="normal">182</span>
+<span class="normal">183</span>
+<span class="normal">184</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">source</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">stream</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;audio&quot;</span><span class="p">,</span> <span class="s2">&quot;video&quot;</span><span class="p">]</span>
@@ -2051,9 +2054,12 @@ entire video to obtain PTS.</p>
     <span class="bp">self</span><span class="o">.</span><span class="n">_current_decoder_index</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_indexed_frames_buffer</span><span class="p">:</span> <span class="n">deque</span><span class="p">[</span><span class="n">ReaderFrameType</span><span class="p">]</span> <span class="o">=</span> <span class="n">deque</span><span class="p">(</span><span class="n">maxlen</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_reorder_buffer_size</span> <span class="o">=</span> <span class="mi">10</span>
-    <span class="c1"># TODO(dan): can we avoid it?</span>
+
     <span class="c1"># this forces loading the gopsize on initialization to set the buffer length</span>
     <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">gop_size</span>
+
+    <span class="c1"># TODO: this can be set to gop size but tests need adapting</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_reorder_buffer_size</span> <span class="o">=</span> <span class="mi">35</span>
 </code></pre></div></td></tr></table></div>
                   </details>
 
