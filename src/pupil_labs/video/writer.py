@@ -163,7 +163,7 @@ class Writer:
         stream.codec_context.options["movflags"] = "faststart"
 
         # bufsize at 2x bitrate seems to give better overall quality
-        stream.codec_context.options["bufsize"] = f"{2 * self.bit_rate / 1000}k"
+        stream.codec_context.options["bufsize"] = f"{2 * self.bit_rate // 1000}k"
 
         # b frames can cause certain frames in chrome to not be seeked to correctly
         # https://bugs.chromium.org/p/chromium/issues/detail?id=66631
