@@ -216,7 +216,7 @@ class Reader(Generic[ReaderFrameType]):
 
         if isinstance(self.source, UPath):
             try:
-                url = self.source.fs.sign(self.source, expiration=5 * 3600)
+                url = self.source.fs.sign(str(self.source), expiration=5 * 3600)
             except NotImplementedError:
                 url = str(url)
 
