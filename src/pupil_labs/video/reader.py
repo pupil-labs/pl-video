@@ -313,7 +313,9 @@ class Reader(Generic[ReaderFrameType]):
         self.stats.seeks += 1
 
         index = "?"
-        if pts in self._partial_dts_to_index:
+        if pts == 0:
+            index = "0"
+        elif pts in self._partial_dts_to_index:
             index = str(self._partial_dts_to_index[pts])
         elif pts in self._partial_pts_to_index:
             index = str(self._partial_pts_to_index[pts])
@@ -594,7 +596,7 @@ class Reader(Generic[ReaderFrameType]):
             return self._stream.frames
         return len(self.pts)
 
-    def _demux(self) -> Iterator[av.packet.Packet]:
+    def _demux(self) -> Iterator[av.packet.Packet]:  # noqa: C901
         """Demuxed packets from the stream"""
         logger = self._get_logger(f"{Reader._demux.__name__}()")
         logpackets = logger and logger.debug
@@ -607,6 +609,12 @@ class Reader(Generic[ReaderFrameType]):
             is_new_dts = False
             if packet.pts is not None:
                 assert packet.dts is not None
+                if packet.dts == prev_packet_dts:
+                    logger and logger.warning(
+                        f"duplicate dts found: {packet.dts}, pts: {packet.pts}, "
+                        f"incrementing dts +1 to {packet.dts + 1}"
+                    )
+                    packet.dts += 1
                 is_new_dts = (self._is_at_start and not self._partial_dts) or (
                     len(self._partial_dts) > 0
                     and self._partial_dts[-1] == prev_packet_dts
@@ -653,7 +661,7 @@ class Reader(Generic[ReaderFrameType]):
             if logpackets:
                 index_str = " "
                 if packet.pts is not None:
-                    index_str = f"{self._partial_dts_to_index.get(packet.pts, '?')}"
+                    index_str = f"{self._partial_pts_to_index.get(packet.pts, '?')}"
                 packet_time_str = "      "
                 if packet.pts is not None:
                     packet_time_str = f"{packet.pts * stream_time_base:.3f}s"
@@ -727,7 +735,7 @@ class Reader(Generic[ReaderFrameType]):
                             cast(npt.NDArray[np.uint8], av_frame.to_ndarray()),
                             format=av_frame.format.name,
                         )
-                        dup_frame.pts = self._partial_pts[missing_idx]
+                        dup_frame.pts = dup_frame.dts = self._partial_pts[missing_idx]
                         dup_frame.time_base = av_frame.time_base
                         self._current_decoder_index = missing_idx
                         yield dup_frame
