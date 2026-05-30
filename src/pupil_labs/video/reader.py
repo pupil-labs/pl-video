@@ -215,7 +215,7 @@ class Reader(Generic[ReaderFrameType]):
         source_lower = source_lower.lower()
         container_format = None
         for container_format in ["mp4", "mjpeg", "aac"]:
-            if str(source_lower).endswith(container_format):
+            if source_lower.endswith(container_format):
                 break
 
         if isinstance(self.source, UPath):
