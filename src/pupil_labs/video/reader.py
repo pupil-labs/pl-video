@@ -211,8 +211,7 @@ class Reader(Generic[ReaderFrameType]):
 
         # some devices save with an MP4 extension, so just normalize all extensions
         # to lowercase to cover all possibilities
-        source_lower = self.source
-        source_lower = source_lower.lower()
+        source_lower = str(self.source).lower()
         container_format = None
         for container_format in ["mp4", "mjpeg", "aac"]:
             if source_lower.endswith(container_format):
