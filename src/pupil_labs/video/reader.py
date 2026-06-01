@@ -209,8 +209,6 @@ class Reader(Generic[ReaderFrameType]):
     def _container(self) -> av.container.input.InputContainer:
         url = self.source
 
-        # some devices save with an MP4 extension, so just normalize all extensions
-        # to lowercase to cover all possibilities
         source_lower = str(self.source).lower()
         container_format = None
         for container_format in ["mp4", "mjpeg", "aac"]:
