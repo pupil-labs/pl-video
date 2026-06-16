@@ -209,9 +209,10 @@ class Reader(Generic[ReaderFrameType]):
     def _container(self) -> av.container.input.InputContainer:
         url = self.source
 
+        source_lower = str(self.source).lower()
         container_format = None
         for container_format in ["mp4", "mjpeg", "aac"]:
-            if str(self.source).endswith(container_format):
+            if source_lower.endswith(container_format):
                 break
 
         if isinstance(self.source, UPath):
