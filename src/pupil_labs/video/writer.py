@@ -198,6 +198,10 @@ class Writer:
     def _encode_av_audio_frame(
         self, av_frame: av.audio.frame.AudioFrame | None
     ) -> None:
+        if av_frame and not self.audio_stream.codec_context.is_open:
+            self.audio_stream.codec_context.sample_rate = av_frame.sample_rate
+            self.audio_stream.codec_context.format = av_frame.format.name
+
         self._packet_buffer.extend(self.audio_stream.encode(av_frame))
         self._mux_packets()
 
@@ -243,8 +247,6 @@ class Writer:
         stream = self.container.add_stream("aac")
         stream = cast(av.audio.stream.AudioStream, stream)
         stream.codec_context.time_base = Fraction(1, 90000)
-        # stream.codec_context.rate = 48000
-        # stream.codec_context.bit_rate = 64000
         return stream
 
     @cached_property
