@@ -204,7 +204,7 @@ class Writer:
     def _encode_av_video_frame(
         self, av_frame: av.video.frame.VideoFrame | None
     ) -> None:
-        if av_frame and self.video_stream.encoded_frame_count == 0:  # type: ignore
+        if av_frame and not self.video_stream.is_open:  # type: ignore
             self.video_stream.codec_context.width = av_frame.width
             self.video_stream.codec_context.height = av_frame.height
 
