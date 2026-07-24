@@ -163,7 +163,7 @@ class Writer:
         stream.codec_context.options["movflags"] = "faststart"
 
         # bufsize at 2x bitrate seems to give better overall quality
-        stream.codec_context.options["bufsize"] = f"{2 * self.bit_rate / 1000}k"
+        stream.codec_context.options["bufsize"] = f"{2 * self.bit_rate // 1000}k"
 
         # b frames can cause certain frames in chrome to not be seeked to correctly
         # https://bugs.chromium.org/p/chromium/issues/detail?id=66631
@@ -198,13 +198,17 @@ class Writer:
     def _encode_av_audio_frame(
         self, av_frame: av.audio.frame.AudioFrame | None
     ) -> None:
+        if av_frame and not self.audio_stream.codec_context.is_open:
+            self.audio_stream.codec_context.sample_rate = av_frame.sample_rate
+            self.audio_stream.codec_context.format = av_frame.format.name
+
         self._packet_buffer.extend(self.audio_stream.encode(av_frame))
         self._mux_packets()
 
     def _encode_av_video_frame(
         self, av_frame: av.video.frame.VideoFrame | None
     ) -> None:
-        if av_frame and self.video_stream.encoded_frame_count == 0:  # type: ignore
+        if av_frame and not self.video_stream.is_open:  # type: ignore
             self.video_stream.codec_context.width = av_frame.width
             self.video_stream.codec_context.height = av_frame.height
 
@@ -243,8 +247,6 @@ class Writer:
         stream = self.container.add_stream("aac")
         stream = cast(av.audio.stream.AudioStream, stream)
         stream.codec_context.time_base = Fraction(1, 90000)
-        # stream.codec_context.rate = 48000
-        # stream.codec_context.bit_rate = 64000
         return stream
 
     @cached_property
