@@ -56,6 +56,7 @@ class Writer:
         fps: int | None = None,
         bit_rate: int = 2_000_000,
         logger: Logger | None = None,
+        encoder: str | None = None,
     ) -> None:
         """Video writer for creating videos from image arrays.
 
@@ -65,6 +66,8 @@ class Writer:
             fps: The desired framerate of the video.
             bit_rate: The desired bit rate of the video.
             logger: Python logger to use. Decreases performance.
+            encoder: Force a specific encoder (e.g. 'h264' for CPU, 'h264_nvenc'
+                for GPU). If None, auto-detects the best available encoder.
 
         """
         self.path = path
@@ -72,6 +75,7 @@ class Writer:
         self.fps = fps
         self.bit_rate = bit_rate
         self.logger = logger or DEFAULT_LOGGER
+        self.encoder = encoder
         self.container = av.open(self.path, "w")
 
     def write_frame(
@@ -132,15 +136,18 @@ class Writer:
     def video_stream(self) -> av.video.stream.VideoStream:
         # TODO(dan): what about mjpeg?
 
-        h264_nvenc_error = check_pyav_video_encoder_error("h264_nvenc")
-        if h264_nvenc_error:
-            self.logger.warning(
-                "could not add stream with encoder 'h264_nvenc'"
-                f"using libx264 instead. Error was: {h264_nvenc_error}"
-            )
-            encoder_name = "h264"
+        if self.encoder is not None:
+            encoder_name = self.encoder
         else:
-            encoder_name = "h264_nvenc"
+            h264_nvenc_error = check_pyav_video_encoder_error("h264_nvenc")
+            if h264_nvenc_error:
+                self.logger.warning(
+                    "could not add stream with encoder 'h264_nvenc'"
+                    f"using libx264 instead. Error was: {h264_nvenc_error}"
+                )
+                encoder_name = "h264"
+            else:
+                encoder_name = "h264_nvenc"
 
         if self.fps is None:
             stream = self.container.add_stream(encoder_name)
