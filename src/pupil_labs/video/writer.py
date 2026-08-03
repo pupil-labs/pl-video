@@ -5,7 +5,7 @@ from logging import Logger, getLogger
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from types import TracebackType
-from typing import Optional, cast
+from typing import cast
 
 import av
 import av.audio
@@ -15,6 +15,7 @@ import av.stream
 import av.video
 import numpy as np
 import numpy.typing as npt
+from packaging.version import Version
 
 from pupil_labs.video.frame import AudioFrame, PixelFormat, VideoFrame
 
@@ -80,7 +81,7 @@ class Writer:
         | av.video.frame.VideoFrame
         | AudioFrame
         | VideoFrame,
-        time: Optional[float] = None,
+        time: float | None = None,
     ) -> None:
         if self.fps is not None and time is not None:
             raise ValueError("Can't provide time argument when fps is set!")
@@ -108,8 +109,8 @@ class Writer:
     def write_image(
         self,
         image: npt.NDArray[np.uint8],
-        time: Optional[float] = None,
-        pix_fmt: Optional[PixelFormat] = None,
+        time: float | None = None,
+        pix_fmt: PixelFormat | None = None,
     ) -> None:
         """Write an image to the video.
 
@@ -142,7 +143,18 @@ class Writer:
         else:
             encoder_name = "h264_nvenc"
 
-        if self.fps is None:
+        _av_ge_18 = Version(av.__version__) >= Version("18.0.0")
+        if encoder_name == "h264_nvenc" and _av_ge_18:
+            from av.codec.hwaccel import HWAccel
+
+            cuda = HWAccel(device_type="cuda")
+            if self.fps is None:
+                stream = self.container.add_stream(encoder_name, hwaccel=cuda)
+            else:
+                stream = self.container.add_stream(
+                    encoder_name, rate=self.fps, hwaccel=cuda
+                )
+        elif self.fps is None:
             stream = self.container.add_stream(encoder_name)
         else:
             stream = self.container.add_stream(encoder_name, rate=self.fps)
