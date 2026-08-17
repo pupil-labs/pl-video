@@ -130,7 +130,8 @@ def av_frame_to_ndarray_fast(
                 gray_padded = plane_data
                 gray_padded = gray_padded.reshape(-1, plane.line_size)
                 gray = gray_padded[:, : plane.width]
-                # gray = np.ascontiguousarray(gray)
+                if plane.width != plane.line_size:
+                    gray = np.ascontiguousarray(gray)
 
             if av_frame.format.name == "yuv420p":
                 warnings.warn(
