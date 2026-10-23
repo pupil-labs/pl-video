@@ -717,9 +717,9 @@ class Reader(Generic[ReaderFrameType]):
                 # TODO(dan): this is fragile, better to look at dts instead
                 if self._indexed_frames_buffer:
                     most_recent_indexed_frame = self._indexed_frames_buffer[-1]
-                    if most_recent_indexed_frame.index == decoded_index:
+                    if most_recent_indexed_frame.index >= decoded_index:
                         # handle frame index when duplicate pts encountered
-                        decoded_index += 1
+                        decoded_index = most_recent_indexed_frame.index + 1
 
                 if (
                     isinstance(av_frame, av.VideoFrame)

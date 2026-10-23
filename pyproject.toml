@@ -80,7 +80,7 @@ source = ["pupil_labs"]
 [tool.deptry.per_rule_ignores]
 DEP001 = ["pupil_labs", "cv2"]
 DEP002 = ["opencv-python"]
-DEP003 = ["pupil_labs", "typing_extensions"]
+DEP003 = ["pupil_labs", "typing_extensions", "packaging"]
 
 [tool.hatch.version]
 source = "uv-dynamic-versioning"

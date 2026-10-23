@@ -49,6 +49,7 @@ def pytest_generate_tests(metafunc: Any) -> None:
         TEST_DATA_PATH / "way_out_of_order_pts.mp4",
         TEST_DATA_PATH / "duplicate_pts.mp4",
         TEST_DATA_PATH / "silently_skipped_corrupt_frame.mp4",
+        TEST_DATA_PATH / "multi_duplicate_pts.mp4",
     ]
 
     standard_videos = [main_video, *videos_with_audio, *videos_other, *videos_mjpeg]
