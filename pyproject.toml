@@ -18,7 +18,12 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 
-dependencies = ["numpy", "av", "universal_pathlib"]
+dependencies = [
+    "numpy",
+    "av",
+    "universal_pathlib",
+    "packaging>=26.0",
+]
 
 [project.optional-dependencies]
 examples = ["opencv-python", "tqdm"]
@@ -80,7 +85,7 @@ source = ["pupil_labs"]
 [tool.deptry.per_rule_ignores]
 DEP001 = ["pupil_labs", "cv2"]
 DEP002 = ["opencv-python"]
-DEP003 = ["pupil_labs", "typing_extensions", "packaging"]
+DEP003 = ["pupil_labs", "typing_extensions"]
 
 [tool.hatch.version]
 source = "uv-dynamic-versioning"
