@@ -4,16 +4,43 @@ install: ## Install the virtual environment and install the pre-commit hooks
 	@uv sync
 	@uv run pre-commit install
 
-.PHONY: check
-check: ## Run code quality tools.
+PRETTIER_VERSION := 3.1.0
+PRETTIER := npm exec --yes --package=prettier@$(PRETTIER_VERSION) -- prettier
+# Checked with Neon X's rules, in ruff.reader.toml and mypy.reader.ini.
+READER := src/pupil_labs/video_reader tests/video_reader tools
+
+.PHONY: lint format-check typecheck deptry prettier-format check
+lint:
+	@echo "🚀 Linting code: Running ruff"
+	uv run --locked ruff check --config ruff.reader.toml $(READER)
+
+format-check:
+	@echo "🚀 Checking code formatting: Running ruff"
+	uv run --locked ruff format --check --config ruff.reader.toml $(READER)
+
+typecheck:
+	@echo "🚀 Static type checking: Running mypy"
+	uv run --locked mypy
+	uv run --locked mypy --config-file mypy.reader.ini
+
+deptry:
+	@echo "🚀 Checking for obsolete dependencies: Running deptry"
+	uv run --locked deptry .
+
+prettier-format:
+	$(PRETTIER) --write .
+
+check: lint format-check typecheck deptry prettier-format ## Run code quality tools
 	@echo "🚀 Checking lock file consistency with 'pyproject.toml'"
 	@uv lock --locked
-	@echo "🚀 Linting code: Running pre-commit"
-	@uv run pre-commit run -a
-	@echo "🚀 Static type checking: Running mypy"
-	@uv run mypy
-	@echo "🚀 Checking for obsolete dependencies: Running deptry"
-	@uv run deptry .
+
+.PHONY: compare
+compare: ## Compare every frame of pl-video's reader and pupil_labs.video_reader
+	uv run python tools/compare_readers.py
+
+.PHONY: benchmark
+benchmark: ## Time pl-video's reader against pupil_labs.video_reader
+	uv run python tools/benchmark_readers.py
 
 .PHONY: test
 test: ## Test the code with pytest

@@ -19,8 +19,6 @@ from packaging.version import Version
 
 from pupil_labs.video.frame import AudioFrame, PixelFormat, VideoFrame
 
-av.logging.set_level(av.logging.VERBOSE)
-
 DEFAULT_LOGGER = getLogger(__name__)
 
 

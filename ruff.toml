@@ -1,6 +1,8 @@
 fix = true
 
 exclude = ["examples/flexible_video_access.py"]
+# Checked with ruff.reader.toml instead.
+extend-exclude = ["src/pupil_labs/video_reader", "tests/video_reader", "tools"]
 
 [lint]
 extend-select = [
