@@ -531,6 +531,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#the-new-reader" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The new reader
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -611,6 +622,25 @@
     <span class="k">for</span> <span class="n">img</span> <span class="ow">in</span> <span class="n">images</span><span class="p">:</span>
         <span class="n">writer</span><span class="o">.</span><span class="n">write_image</span><span class="p">(</span><span class="n">img</span><span class="p">)</span>
 </code></pre></div>
+<h2 id="the-new-reader">The new reader<a class="headerlink" href="#the-new-reader" title="Permanent link">&para;</a></h2>
+<p><code>pupil_labs.video_reader</code> is a reader for MP4 files that seeks from the frame table the file already holds, so any frame of a long video is a fraction of a second away. It is indexed like a numpy array, as <code>docs/adr/0001-the-reader-is-indexed-like-a-numpy-array.md</code> records:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pupil_labs.video_reader</span><span class="w"> </span><span class="kn">import</span> <span class="n">Reader</span>
+
+<span class="k">with</span> <span class="n">Reader</span><span class="p">(</span><span class="n">video_path</span><span class="p">)</span> <span class="k">as</span> <span class="n">video</span><span class="p">:</span>
+    <span class="n">frame</span> <span class="o">=</span> <span class="n">video</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>  <span class="c1"># one frame: index, time, pts, bgr, rgb, gray</span>
+    <span class="n">every_tenth</span> <span class="o">=</span> <span class="n">video</span><span class="p">[::</span><span class="mi">10</span><span class="p">]</span>  <span class="c1"># a Selection: nothing decoded yet</span>
+    <span class="n">picked</span> <span class="o">=</span> <span class="n">video</span><span class="p">[[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">5</span><span class="p">]]</span>  <span class="c1"># any order, repeats allowed</span>
+    <span class="n">later</span> <span class="o">=</span> <span class="n">video</span><span class="p">[</span><span class="n">video</span><span class="o">.</span><span class="n">timestamps</span> <span class="o">&gt;</span> <span class="mf">10.0</span><span class="p">]</span>  <span class="c1"># a Boolean mask</span>
+    <span class="k">for</span> <span class="n">frame</span> <span class="ow">in</span> <span class="n">every_tenth</span><span class="p">:</span>  <span class="c1"># several keyframe groups decode at once</span>
+        <span class="n">img</span> <span class="o">=</span> <span class="n">frame</span><span class="o">.</span><span class="n">bgr</span>
+    <span class="n">at_12_5_s</span> <span class="o">=</span> <span class="n">video</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">video</span><span class="o">.</span><span class="n">timestamps</span><span class="p">,</span> <span class="mf">12.5</span><span class="p">)]</span>  <span class="c1"># a frame by time</span>
+</code></pre></div>
+<p>It needs Python 3.13. Two commands hold it to pl-video's <code>Reader</code> on the videos under <code>/mnt/data/recordings</code> and <code>tests/data</code> (<code>git lfs pull</code> first):</p>
+<ul>
+<li><code>make compare</code> compares <code>index</code>, <code>time</code>, <code>pts</code>, <code>.bgr</code>, <code>.rgb</code> and <code>.gray</code> of every frame and lists each mismatch.</li>
+<li><code>make benchmark</code> times both readers per scenario and video, five fresh processes each, and checks the new one is no slower and uses no more memory.</li>
+</ul>
 
 
 
