@@ -87,6 +87,8 @@ with Reader(video_path) as video:
     at_12_5_s = video[np.searchsorted(video.timestamps, 12.5)]  # a frame by time
 ```
 
+It assumes closed keyframe groups, as Neon and Pupil Invisible write them: no frame refers to one before its group's keyframe. On an open-GOP file it returns wrong images for the frames that do.
+
 It needs Python 3.13. Two commands hold it to pl-video's `Reader` on the videos under `/mnt/data/recordings` and `tests/data` (`git lfs pull` first):
 
 - `make compare` compares `index`, `time`, `pts`, `.bgr`, `.rgb` and `.gray` of every frame and lists each mismatch.

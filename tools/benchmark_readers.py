@@ -159,7 +159,10 @@ def main() -> None:
     for video in args.video:
         warm(VIDEOS[video])
         for scenario in args.scenario:
-            cells = measure(args.reader, scenario, video, args.runs)
+            readers = [
+                r for r in args.reader if r != "new lazy" or scenario not in SINGLE
+            ]
+            cells = measure(readers, scenario, video, args.runs)
             row = f"{scenario:<11}{video:<12}"
             for r in args.reader:
                 cell = cells.get(r)
