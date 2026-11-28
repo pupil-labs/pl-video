@@ -63,4 +63,4 @@ def _decode_times(file: BinaryIO, stts: _Span) -> npt.NDArray[np.float64]:
     (count,) = struct.unpack(">I", _read(file, stts, 4, 4))
     runs = np.frombuffer(_read(file, stts, 8, 8 * count), dtype=">u4").reshape(-1, 2)
     durations = np.repeat(runs[:, 1].astype(np.int64), runs[:, 0])
-    return np.concatenate([[0], np.cumsum(durations[:-1])]).astype(np.float64)
+    return (np.cumsum(durations) - durations).astype(np.float64)

@@ -1,12 +1,15 @@
 import re
+from fractions import Fraction
 from pathlib import Path
 from typing import Any, assert_type
 
+import av
 import numpy as np
 import pytest
 
 from pupil_labs.video_reader import Frame, Reader, Selection
 from pupil_labs.video_reader._decoder import Decoder
+from pupil_labs.video_reader._mp4 import shown_times
 
 DATA = Path(__file__).parent.parent / "data"
 VIDEO = DATA / "Neon Scene Camera - audio off.mp4"
@@ -160,6 +163,21 @@ def test_timestamps_are_the_frames_times(name: str) -> None:
 
     assert reader.timestamps.tolist() == [frame.time for frame in reader]
     assert reader.rate == rate
+
+
+def test_a_fragmented_mp4_keeps_no_times_in_its_tables(tmp_path: Path) -> None:
+    path = tmp_path / "fragmented.mp4"
+    with av.open(path, "w", options={"movflags": "frag_keyframe+empty_moov"}) as out:
+        stream = out.add_stream("libx264", rate=1)
+        stream.width = stream.height = 64
+        stream.time_base = Fraction(1, 1)
+        frame = av.VideoFrame.from_ndarray(np.zeros((64, 64, 3), np.uint8), "bgr24")
+        out.mux([*stream.encode(frame), *stream.encode()])
+
+    times = shown_times(path)
+
+    assert times is not None
+    assert len(times) == 0
 
 
 def test_passed_timestamps_become_the_frames_times() -> None:
