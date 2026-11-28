@@ -151,7 +151,9 @@ def test_a_dropped_frame_repeats_the_next_one_however_it_is_asked_for() -> None:
     assert np.array_equal(reader[220].gray, following)
 
 
-@pytest.mark.parametrize("name", [VIDEO.name, *UNUSUAL])
+@pytest.mark.parametrize(
+    "name", sorted(str(p.relative_to(DATA)) for p in DATA.glob("**/*.mp4"))
+)
 def test_timestamps_are_the_frames_times(name: str) -> None:
     reader = Reader(DATA / name)
     rate = reader.rate

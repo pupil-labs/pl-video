@@ -10,6 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from pupil_labs.video_reader._decoder import Decoder
+from pupil_labs.video_reader._mp4 import shown_times
 from pupil_labs.video_reader._parallel import Job, frames_in_order
 from pupil_labs.video_reader.frame import Frame
 
@@ -92,9 +93,12 @@ class Reader:
     @cached_property
     def timestamps(self) -> npt.NDArray[np.float64]:
         """Frame times in seconds: those passed in, or each frame's pts in seconds."""
-        if self._timestamps is None:
+        if self._timestamps is not None:
+            return self._timestamps
+        times = shown_times(self._source)
+        if times is None or len(times) != self._length:
             return _read_timestamps(self._source)
-        return self._timestamps
+        return times
 
     @property
     def rate(self) -> float:

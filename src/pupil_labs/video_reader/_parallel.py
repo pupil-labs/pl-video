@@ -23,6 +23,9 @@ def frames_in_order(
 ) -> Iterator[Frame]:
     """Yield the jobs' frames in order, decoding up to two groups' frames ahead.
 
+    Only one group's when `decoder` decodes with all threads, as it does for
+    frames big enough that two groups of them take too much memory.
+
     A job runs on a decoder of its own, up to four at once, while the caller takes
     the frames before it. One that takes a few frames gets a decoder with four
     threads, which loses less of its threads to a seek. The first job runs on
@@ -30,8 +33,8 @@ def frames_in_order(
     before the previous job's when `decoder` decodes with all threads: such a
     group keeps every core busy on its own.
     """
-    budget = 2 * group_length
     big_frames = decoder.threads == ALL_THREADS
+    budget = (1 if big_frames else 2) * group_length
     idle: dict[int | None, LifoQueue[Decoder]] = {
         DEFAULT_THREADS: LifoQueue(),
         FEW_THREADS: LifoQueue(),
