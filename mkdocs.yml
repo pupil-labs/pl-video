@@ -24,6 +24,7 @@ nav:
 not_in_nav: |
   contributing.md
   coverage.md
+  adr/
 
 theme:
   name: material

@@ -68,3 +68,28 @@ with (plv.Writer(out_path) as writer):
     for img in images:
         writer.write_image(img)
 ```
+
+## The new reader
+
+`pupil_labs.video_reader` is a reader for MP4 files that seeks from the frame table the file already holds, so any frame of a long video is a fraction of a second away. It is indexed like a numpy array, as `docs/adr/0001-the-reader-is-indexed-like-a-numpy-array.md` records:
+
+```python
+import numpy as np
+from pupil_labs.video_reader import Reader
+
+with Reader(video_path) as video:
+    frame = video[-1]  # one frame: index, time, pts, bgr, rgb, gray
+    every_tenth = video[::10]  # a Selection: nothing decoded yet
+    picked = video[[5, 3, 5]]  # any order, repeats allowed
+    later = video[video.timestamps > 10.0]  # a Boolean mask
+    for frame in every_tenth:  # several keyframe groups decode at once
+        img = frame.bgr
+    at_12_5_s = video[np.searchsorted(video.timestamps, 12.5)]  # a frame by time
+```
+
+It assumes closed keyframe groups, as Neon and Pupil Invisible write them: no frame refers to one before its group's keyframe. On an open-GOP file it returns wrong images for the frames that do.
+
+It needs Python 3.13. Two commands hold it to pl-video's `Reader` on the videos under `/mnt/data/recordings` and `tests/data` (`git lfs pull` first):
+
+- `make compare` compares `index`, `time`, `pts`, `.bgr`, `.rgb` and `.gray` of every frame and lists each mismatch.
+- `make benchmark` times both readers per scenario and video, five fresh processes each, and checks the new one is no slower and uses no more memory.

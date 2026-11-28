@@ -25,6 +25,7 @@ import av.packet
 import av.video
 import numpy as np
 import numpy.typing as npt
+from av.rational import AVRational
 from upath import UPath
 
 from pupil_labs.video.constants import LAZY_FRAME_SLICE_LIMIT
@@ -888,7 +889,7 @@ class Reader(Generic[ReaderFrameType]):
         return None
 
     @property
-    def time_base(self) -> Fraction | None:
+    def time_base(self) -> AVRational | None:
         return self._stream.time_base
 
     def __iter__(self) -> Iterator[ReaderFrameType]:
@@ -934,7 +935,6 @@ class Reader(Generic[ReaderFrameType]):
     @property
     def rate(self) -> Fraction | int | None:
         """Return the framerate of the video in Hz."""
-        try:
+        if isinstance(self._stream, av.audio.stream.AudioStream):
             return self._stream.rate
-        except AttributeError:
-            return None
+        return None

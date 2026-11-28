@@ -1,0 +1,51 @@
+# Neon X's rule set, for pupil_labs.video_reader, its tests and tools/.
+target-version = "py313"
+fix = true
+unsafe-fixes = false
+preview = false
+
+[lint]
+extend-select = [
+    "E",
+    "W",
+    "I",
+    "Q",
+    "ISC",
+    "F",
+    "B",
+    "A",
+    "PLC",
+    "PLE",
+    "PLW",
+    "RUF",
+    "UP",
+    "YTT",
+    "SIM",
+    "C4",
+    "PIE",
+    "RSE",
+    "C90",
+    "ANN",
+    "ARG",
+    "DTZ",
+    "LOG",
+    "NPY",
+    "PD",
+    "S",
+    "T10",
+    "PT",
+    "PGH005",
+    "PERF",
+    "PGH003",
+    "PGH004",
+    "TID251",
+    "SLF001",
+]
+ignore = [
+    "W191",
+    "S101",
+]
+
+[format]
+preview = false
+quote-style = "double"

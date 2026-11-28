@@ -23,13 +23,13 @@ jobs:
         uses: ./.github/actions/setup-python-env
 
       - name: Run checks
-        run: make check
+        run: uv run pre-commit run -a
 
   tests-and-type-check:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.13"]
       fail-fast: false
     defaults:
       run:
